@@ -6,6 +6,34 @@ import ChatView from './components/ChatView'
 import ProfileModal from './components/ProfileModal'
 import Login from './components/Login'
 
+const [profileState, setProfileState] = useState(profile)
+
+useEffect(() => {
+  setProfileState(profile)
+}, [profile])
+
+// Then pass onProfileUpdate to ProfileModal
+{showProfileModal && (
+  <ProfileModal
+    user={profileUser}
+    onClose={() => setShowProfileModal(false)}
+    currentUserId={user.id}
+    onProfileUpdate={(updated) => {
+      setProfileState(prev => ({ ...prev, ...updated }))
+    }}
+  />
+)}
+
+// Also update Sidebar prop to use profileState
+<Sidebar
+  convs={convs}
+  loading={convsLoading}
+  activeId={activeConvId}
+  onSelect={setActiveConvId}
+  onShowProfile={(u) => { setProfileUser(u); setShowProfileModal(true) }}
+  profile={profileState}  // pass updated profile
+/>
+
 function App() {
   const { user, profile, loading: authLoading } = useAuth()
   const { convs, loading: convsLoading } = useConversations()
