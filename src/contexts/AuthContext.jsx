@@ -33,6 +33,16 @@ export function AuthProvider({ children }) {
     if (!error && data) setProfile(data)
   }
 
+const refreshProfile = async () => {
+  if (user) await fetchProfile(user.id)
+}
+
+// Add to context value
+return (
+  <AuthContext.Provider value={{ user, profile, loading, signOut, refreshProfile }}>
+    {children}
+  </AuthContext.Provider>
+)
   async function signOut() {
     await supabase.auth.signOut()
   }
