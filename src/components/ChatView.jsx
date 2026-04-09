@@ -19,6 +19,7 @@ export default function ChatView({ conv, onShowInfo }) {
   const [isVideoCall, setIsVideoCall] = useState(false)
   const taRef = useRef(null)
   const emojiButtonRef = useRef(null)
+  const emojiPickerRef = useRef(null)
 
   const isGroup = conv?.type === 'group'
   const partner = !isGroup ? conv?.members?.[0] : null
@@ -30,7 +31,8 @@ export default function ChatView({ conv, onShowInfo }) {
   // Close emoji picker when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (emojiButtonRef.current && !emojiButtonRef.current.contains(e.target)) {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target) && 
+          emojiButtonRef.current && !emojiButtonRef.current.contains(e.target)) {
         setShowEmojiPicker(false)
       }
     }
@@ -42,26 +44,50 @@ export default function ChatView({ conv, onShowInfo }) {
     if (!text.trim() || sending) return
     setSending(true)
     const ok = await sendMessage(text, replyTo?.id || null)
-    if (ok) { setText(''); setReplyTo(null); if (taRef.current) taRef.current.style.height = 'auto' }
+    if (ok) { 
+      setText(''); 
+      setReplyTo(null); 
+      if (taRef.current) {
+        taRef.current.style.height = 'auto'
+        taRef.current.focus()
+      }
+    }
     setSending(false)
-    taRef.current?.focus()
   }
 
-  const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }
+  const onKey = (e) => { 
+    if (e.key === 'Enter' && !e.shiftKey) { 
+      e.preventDefault(); 
+      handleSend() 
+    } 
+  }
   
   const onInput = (e) => {
     setText(e.target.value)
     startTyping()
-    const ta = e.target; ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'
+    const ta = e.target
+    ta.style.height = 'auto'
+    ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'
   }
 
-  // ✅ Corrected emoji handler for emoji-picker-react v4+
-  const onEmojiClick = (emojiData) => {
-    // emojiData can be an object with .emoji property or just the emoji string depending on version
-    const emoji = emojiData.emoji || emojiData
-    setText(prev => prev + emoji)
+  // ✅ Fixed: Insert emoji at cursor position
+  const onEmojiClick = (emojiObject) => {
+    const emoji = emojiObject.emoji
+    const textarea = taRef.current
+    if (!textarea) return
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const newText = text.substring(0, start) + emoji + text.substring(end)
+    
+    setText(newText)
+    // Move cursor after inserted emoji
+    setTimeout(() => {
+      textarea.selectionStart = textarea.selectionEnd = start + emoji.length
+      textarea.focus()
+    }, 0)
     setShowEmojiPicker(false)
-    taRef.current?.focus()
+    startTyping()
   }
 
   const grouped = groupByDate(msgs)
@@ -128,7 +154,7 @@ export default function ChatView({ conv, onShowInfo }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input Area */}
+      {/* Input Area with Emoji Picker */}
       <div className="chat-input-zone">
         {replyTo && (
           <div className="reply-bar">
@@ -147,11 +173,22 @@ export default function ChatView({ conv, onShowInfo }) {
               className="icon-btn"
               style={{ width:28, height:28, flexShrink:0 }}
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              type="button"
             >
               <Smile size={17} />
             </button>
             {showEmojiPicker && (
-              <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: 8, zIndex: 1000 }}>
+              <div 
+                ref={emojiPickerRef}
+                style={{ 
+                  position: 'absolute', 
+                  bottom: '100%', 
+                  left: 0, 
+                  marginBottom: '8px', 
+                  zIndex: 1000,
+                  width: '320px'
+                }}
+              >
                 <EmojiPicker onEmojiClick={onEmojiClick} />
               </div>
             )}
@@ -170,16 +207,7 @@ export default function ChatView({ conv, onShowInfo }) {
           </button>
         </div>
       </div>
-
-      {showCallModal && (
-        <CallModal
-          conversationId={conv?.id}
-          currentUserId={user.id}
-          targetUserId={partner?.id}
-          onClose={() => setShowCallModal(false)}
-          isVideo={isVideoCall}
-        />
-      )}
+      {showCallModal && <CallModal conversationId={conv?.id} currentUserId={user.id} targetUserId={partner?.id} onClose={() => setShowCallModal(false)} isVideo={isVideoCall} />}
     </div>
   )
 }
