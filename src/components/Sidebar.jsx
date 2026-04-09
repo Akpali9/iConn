@@ -7,6 +7,16 @@ import NewChatModal from './NewChatModal'
 
 export default function Sidebar({ convs, loading, activeId, onSelect, onShowProfile }) {
   const { profile, signOut } = useAuth()
+
+  // ⚠️ Critical: Wait for profile to load
+  if (!profile) {
+    return (
+      <div className="loading-screen">
+        <div className="spinner" />
+      </div>
+    )
+  }
+
   const [q, setQ] = useState('')
   const [tab, setTab] = useState('all')
   const [modal, setModal] = useState(null)
@@ -26,8 +36,8 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
               <span className="iconn-logo-name">i<span>Conn</span></span>
             </div>
             <div className="sidebar-actions">
-              <button className="icon-btn" title="New chat" onClick={() => setModal('direct')}><UserPlus size={16} /></button>
-              <button className="icon-btn" title="New group" onClick={() => setModal('group')}><Users size={16} /></button>
+              <button className="icon-btn" onClick={() => setModal('direct')}><UserPlus size={16} /></button>
+              <button className="icon-btn" onClick={() => setModal('group')}><Users size={16} /></button>
             </div>
           </div>
           <div className="search-wrap">
@@ -35,13 +45,11 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
             <input className="search-inp" placeholder="Search conversations…" value={q} onChange={e => setQ(e.target.value)} />
           </div>
         </div>
-
         <div className="sidebar-tabs">
           {[['all','All'],['direct','Chats'],['groups','Groups']].map(([k,l]) => (
             <button key={k} className={`stab ${tab===k?'on':''}`} onClick={() => setTab(k)}>{l}</button>
           ))}
         </div>
-
         <div className="conv-list">
           {loading ? (
             Array(6).fill(0).map((_,i) => <SkelItem key={i} />)
@@ -53,15 +61,14 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
             ))
           )}
         </div>
-
-        <div className="sidebar-foot" onClick={() => profile && onShowProfile(profile)}>
+        <div className="sidebar-foot" onClick={() => onShowProfile(profile)}>
           <div className="av" style={{ position: 'relative' }}>
-            <Avatar name={profile?.display_name} src={profile?.avatar_url} size={40} />
+            <Avatar name={profile.display_name} src={profile.avatar_url} size={40} />
             <div className="av-dot" />
           </div>
           <div className="sf-info">
-            <div className="sf-name">{profile?.display_name || 'You'}</div>
-            <div className="sf-handle">@{profile?.username}</div>
+            <div className="sf-name">{profile.display_name || 'You'}</div>
+            <div className="sf-handle">@{profile.username}</div>
           </div>
           <button className="icon-btn" onClick={e => { e.stopPropagation(); signOut() }} title="Sign out">
             <LogOut size={15} />
@@ -84,15 +91,9 @@ function ConvRow({ c, active, onClick, onShowProfile }) {
   const member = c.members?.[0]
   const online = c.type === 'direct' && member?.is_online
   const ago = c.updated_at ? formatDistanceToNow(new Date(c.updated_at), { addSuffix: false }) : ''
-  
-  const handleAvatarClick = (e) => {
-    e.stopPropagation()
-    if (c.type === 'direct' && member) onShowProfile(member)
-  }
-
   return (
     <div className={`conv-item ${active ? 'active' : ''}`} onClick={onClick}>
-      <div className="av" style={{ position: 'relative', cursor: c.type === 'direct' ? 'pointer' : 'default' }} onClick={handleAvatarClick}>
+      <div className="av" style={{ position: 'relative', cursor: c.type === 'direct' ? 'pointer' : 'default' }} onClick={(e) => { e.stopPropagation(); if (c.type === 'direct' && member) onShowProfile(member); }}>
         {c.type === 'group' ? <GrpAv members={c.members} /> : <Avatar name={name} src={member?.avatar_url} size={48} />}
         {online && <div className="av-dot" />}
       </div>
@@ -130,7 +131,7 @@ function SkelItem() {
   )
 }
 
-export function convName(c) {
+function convName(c) {
   if (c.type === 'group') return c.name || 'Group'
   return c.members?.[0]?.display_name || c.members?.[0]?.username || 'Unknown'
 }
