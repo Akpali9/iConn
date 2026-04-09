@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from './contexts/AuthContext'
-import { useConversations } from './hooks/useChat'  // ← removed usePresence
+import { useConversations } from './hooks/useChat'
 import Sidebar from './components/Sidebar'
 import ChatView from './components/ChatView'
 import ProfileModal from './components/ProfileModal'
@@ -48,6 +48,7 @@ function App() {
                 setProfileUser(activeConv.members[0])
                 setShowProfileModal(true)
               } else if (activeConv.type === 'group') {
+                // Group info modal can be added later
                 alert('Group info coming soon')
               }
             }}
