@@ -3,8 +3,8 @@ import { format } from 'date-fns'
 import Avatar from './Avatar'
 
 export default function ProfileModal({ user: targetUser, onClose, currentUserId }) {
-  const isSelf = targetUser?.id === currentUserId
   if (!targetUser) return null
+  const isSelf = targetUser.id === currentUserId
   return (
     <div className="overlay" onClick={onClose}>
       <div className="modal" style={{ maxWidth: 380 }} onClick={e => e.stopPropagation()}>
@@ -21,7 +21,7 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId 
           {targetUser.bio && <div><div style={{ fontSize:11, color:'var(--ink-40)', marginBottom:3 }}>BIO</div><div>{targetUser.bio}</div></div>}
           <div><div style={{ fontSize:11, color:'var(--ink-40)', marginBottom:3 }}>EMAIL</div><div>{targetUser.email || 'Not shared'}</div></div>
           <div><div style={{ fontSize:11, color:'var(--ink-40)', marginBottom:3 }}>JOINED</div><div>{format(new Date(targetUser.created_at), 'MMM d, yyyy')}</div></div>
-          {targetUser.is_online && <div className="status-badge online">Online now</div>}
+          {targetUser.is_online && <div className="status-badge online" style={{ background:'var(--success)', color:'white', padding:'4px 12px', borderRadius:20, textAlign:'center', fontSize:12, width:'fit-content' }}>Online now</div>}
         </div>
       </div>
     </div>
