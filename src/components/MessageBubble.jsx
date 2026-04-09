@@ -20,7 +20,8 @@ export default function MessageBubble({ msg, showSender, onReply, onDelete, onEd
     setEditing(false)
   }
 
-  if (msg.is_deleted && !msg.content) {
+  // ✅ Check if message is deleted
+  if (msg.is_deleted) {
     return (
       <div className={`msg-wrap ${isOwn ? 'out' : 'in'}`}>
         <div className="msg-bubble deleted">This message was deleted</div>
@@ -33,24 +34,32 @@ export default function MessageBubble({ msg, showSender, onReply, onDelete, onEd
       <div className="msg-actions">
         <button className="ma-btn" onClick={() => setShowRx(v => !v)}><SmilePlus size={13} /></button>
         <button className="ma-btn" onClick={() => onReply(msg)}><Reply size={13} /></button>
-        {isOwn && <>
-          <button className="ma-btn" onClick={() => { setEditing(true); setEditVal(msg.content) }}><Pencil size={13} /></button>
-          <button className="ma-btn del" onClick={() => onDelete(msg.id)}><Trash2 size={13} /></button>
-        </>}
+        {isOwn && (
+          <>
+            <button className="ma-btn" onClick={() => { setEditing(true); setEditVal(msg.content) }}><Pencil size={13} /></button>
+            <button className="ma-btn del" onClick={() => onDelete(msg.id)}><Trash2 size={13} /></button>
+          </>
+        )}
       </div>
 
       {showRx && (
         <div className="quick-rx">
           {QUICK.map(e => (
-            <button key={e} className="qr-btn" style={{ background: hasRx(e) ? 'var(--accent-bg)' : 'transparent', borderRadius: 8 }}
-              onClick={() => { onReact(msg.id, e); setShowRx(false) }}>
+            <button
+              key={e}
+              className="qr-btn"
+              style={{ background: hasRx(e) ? 'var(--accent-bg)' : 'transparent', borderRadius: 8 }}
+              onClick={() => { onReact(msg.id, e); setShowRx(false) }}
+            >
               {e}
             </button>
           ))}
         </div>
       )}
 
-      {showSender && !isOwn && <div className="msg-sender">{msg.profiles?.display_name || msg.profiles?.username}</div>}
+      {showSender && !isOwn && (
+        <div className="msg-sender">{msg.profiles?.display_name || msg.profiles?.username}</div>
+      )}
 
       {msg.reply && (
         <div className="msg-reply-preview">
@@ -62,10 +71,13 @@ export default function MessageBubble({ msg, showSender, onReply, onDelete, onEd
       <div className="msg-bubble">
         {editing ? (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input value={editVal} onChange={e => setEditVal(e.target.value)}
+            <input
+              value={editVal}
+              onChange={e => setEditVal(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditing(false) }}
               style={{ flex:1, background:'rgba(255,255,255,.15)', border:'1px solid rgba(255,255,255,.3)', borderRadius:6, padding:'4px 8px', color:'inherit', fontSize:14, outline:'none' }}
-              autoFocus />
+              autoFocus
+            />
             <button onClick={saveEdit} style={{ background:'rgba(255,255,255,.2)', border:'none', borderRadius:5, padding:'4px 10px', cursor:'pointer' }}>Save</button>
             <button onClick={() => setEditing(false)} style={{ background:'none', border:'none', color:'rgba(255,255,255,.5)', cursor:'pointer' }}>✕</button>
           </div>
