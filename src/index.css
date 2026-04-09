@@ -569,3 +569,7 @@ body {
   color: var(--text-dim);
 }
 .welcome-icon { font-size: 64px; }
+
+.spin {
+  animation: spin 1s linear infinite;
+}
