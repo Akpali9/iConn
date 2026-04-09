@@ -4,20 +4,22 @@ import { useConversations } from './hooks/useChat'
 import Sidebar from './components/Sidebar'
 import ChatView from './components/ChatView'
 import ProfileModal from './components/ProfileModal'
+import GroupInfoModal from './components/GroupInfoModal'
 import Login from './components/Login'
 
 function App() {
   const { user, profile, loading: authLoading, refreshProfile } = useAuth()
-  const { convs, loading: convsLoading } = useConversations()
+  const { convs, loading: convsLoading, refetch: refetchConvs } = useConversations()
   const [activeConvId, setActiveConvId] = useState(null)
   const [activeConv, setActiveConv] = useState(null)
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [profileUser, setProfileUser] = useState(null)
+  const [showGroupInfo, setShowGroupInfo] = useState(false)
 
   useEffect(() => {
     if (activeConvId === '__profile__') {
       setShowProfileModal(true)
-      setProfileUser(profile) // profile may be null initially, but modal handles null
+      setProfileUser(profile)
       setActiveConvId(null)
     } else if (activeConvId) {
       const found = convs.find(c => c.id === activeConvId)
@@ -48,7 +50,7 @@ function App() {
                 setProfileUser(activeConv.members[0])
                 setShowProfileModal(true)
               } else if (activeConv.type === 'group') {
-                alert('Group info coming soon')
+                setShowGroupInfo(true)
               }
             }}
           />
@@ -60,12 +62,30 @@ function App() {
           </div>
         )}
       </div>
+
       {showProfileModal && (
         <ProfileModal
           user={profileUser}
           onClose={() => setShowProfileModal(false)}
           currentUserId={user.id}
           onProfileUpdate={refreshProfile}
+        />
+      )}
+
+      {showGroupInfo && activeConv && (
+        <GroupInfoModal
+          conversation={activeConv}
+          onClose={(shouldRefresh) => {
+            setShowGroupInfo(false)
+            if (shouldRefresh) {
+              setActiveConvId(null)  // close chat view
+              refetchConvs()         // refresh conversation list
+            }
+          }}
+          currentUserId={user.id}
+          onUpdate={() => {
+            refetchConvs()           // refresh after changes
+          }}
         />
       )}
     </div>
