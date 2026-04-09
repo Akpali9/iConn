@@ -9,7 +9,7 @@ import MessageBubble from './MessageBubble'
 import CallModal from './CallModal'
 import GroupInfoModal from './GroupInfoModal'
 
-export default function ChatView({ conv, onShowInfo }) {
+export default function ChatView({ conv, onShowInfo, onBack }) {
   const { user } = useAuth()
   const { msgs, loading, typing, sendMessage, deleteMessage, editMessage, reactToMessage, startTyping, bottomRef } = useMessages(conv?.id)
   const [text, setText] = useState('')
@@ -27,10 +27,10 @@ export default function ChatView({ conv, onShowInfo }) {
   const partner = !isGroup ? conv?.members?.[0] : null
   const name = isGroup ? (conv?.name || 'Group') : (partner?.display_name || partner?.username || 'Chat')
   const online = partner?.is_online
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
 
   useEffect(() => { taRef.current?.focus() }, [conv?.id])
 
-  // Close emoji picker when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target) &&
@@ -97,6 +97,11 @@ export default function ChatView({ conv, onShowInfo }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Header */}
       <div className="chat-head">
+        {isMobile && onBack && (
+          <button className="icon-btn mobile-back-btn" onClick={onBack} style={{ marginRight: 8, fontSize: 20 }}>
+            ←
+          </button>
+        )}
         <div className="av" style={{ position: 'relative', cursor: 'pointer' }} onClick={onShowInfo}>
           <Avatar name={name} src={partner?.avatar_url} size={42} />
           {online && <div className="av-dot" />}
@@ -232,9 +237,7 @@ export default function ChatView({ conv, onShowInfo }) {
           conversation={conv}
           onClose={() => setShowGroupInfo(false)}
           currentUserId={user.id}
-          onUpdate={() => {
-            // Optional: refresh conversation data
-          }}
+          onUpdate={() => {}}
         />
       )}
     </div>
