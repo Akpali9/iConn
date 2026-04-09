@@ -57,7 +57,6 @@ export function useMessages(conversationId) {
     return () => { supabase.removeChannel(channel) }
   }, [conversationId])
 
-  // Typing indicators
   useEffect(() => {
     if (!conversationId) return
     const typingChannel = supabase
@@ -88,7 +87,6 @@ export function useMessages(conversationId) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
       return true
     }
-    console.error('Send message error:', error)
     return false
   }
 
@@ -131,7 +129,6 @@ export function useConversations() {
   const fetchConversations = async () => {
     if (!user) return
 
-    // 1. Get conversation IDs the user is member of
     const { data: memberships, error: memErr } = await supabase
       .from('conversation_members')
       .select('conversation_id, role')
@@ -145,12 +142,11 @@ export function useConversations() {
 
     const convIds = memberships.map(m => m.conversation_id)
 
-    // 2. Fetch conversation details
     const { data: conversations, error: convErr } = await supabase
       .from('conversations')
       .select('*')
       .in('id', convIds)
-      .order('updated_at', { ascending: false })
+      .order('updated_at', { ascending: false, nullsFirst: false })
 
     if (convErr) {
       console.error(convErr)
@@ -159,7 +155,6 @@ export function useConversations() {
       return
     }
 
-    // 3. For each conversation, fetch members (excluding current user)
     const convsWithMembers = await Promise.all(
       conversations.map(async (conv) => {
         const { data: members } = await supabase
@@ -173,18 +168,10 @@ export function useConversations() {
           `)
           .eq('conversation_id', conv.id)
 
-        const allMembers = members?.map(m => ({
-          ...m.profiles,
-          role: m.role
-        })) || []
-
+        const allMembers = members?.map(m => ({ ...m.profiles, role: m.role })) || []
         const otherMembers = allMembers.filter(m => m.id !== user.id)
 
-        return {
-          ...conv,
-          members: otherMembers,
-          allMembers
-        }
+        return { ...conv, members: otherMembers, allMembers }
       })
     )
 
@@ -194,13 +181,11 @@ export function useConversations() {
 
   useEffect(() => {
     fetchConversations()
-
     const channel = supabase
       .channel('conversations-updates')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversation_members' }, () => fetchConversations())
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversations' }, () => fetchConversations())
       .subscribe()
-
     return () => supabase.removeChannel(channel)
   }, [user])
 
@@ -215,10 +200,7 @@ export function useUsers() {
     let q = supabase.from('profiles').select('*')
     if (query) q = q.ilike('username', `%${query}%`).or(`display_name.ilike.%${query}%`)
     const { data, error } = await q.limit(20)
-    if (error) {
-      console.error('Search error:', error)
-      return []
-    }
+    if (error) return []
     return data || []
   }
   return { search }
@@ -226,10 +208,11 @@ export function useUsers() {
 
 // --------------------------------------------
 //  startDirect – create or get existing DM
+//  ✅ FIXED: no duplicate member insert
 // --------------------------------------------
 export async function startDirect(currentUserId, targetUserId) {
   try {
-    // First, find if a direct conversation already exists between these two users
+    // First, check if a direct conversation already exists
     const { data: myConvs, error: myErr } = await supabase
       .from('conversation_members')
       .select('conversation_id')
@@ -238,15 +221,13 @@ export async function startDirect(currentUserId, targetUserId) {
 
     const convIds = myConvs.map(c => c.conversation_id)
     if (convIds.length) {
-      const { data: existing, error: existErr } = await supabase
+      const { data: existing } = await supabase
         .from('conversation_members')
         .select('conversation_id')
         .eq('user_id', targetUserId)
         .in('conversation_id', convIds)
         .limit(1)
-      if (!existErr && existing?.length) {
-        return existing[0].conversation_id
-      }
+      if (existing?.length) return existing[0].conversation_id
     }
 
     // Create new direct conversation
@@ -257,13 +238,10 @@ export async function startDirect(currentUserId, targetUserId) {
       .single()
     if (createErr) throw createErr
 
-    // Add members
+    // ✅ Only add the target member – the trigger adds the creator automatically
     const { error: memberErr } = await supabase
       .from('conversation_members')
-      .insert([
-        { conversation_id: conv.id, user_id: currentUserId, role: 'admin' },
-        { conversation_id: conv.id, user_id: targetUserId, role: 'member' }
-      ])
+      .insert({ conversation_id: conv.id, user_id: targetUserId, role: 'member' })
     if (memberErr) throw memberErr
 
     return conv.id
@@ -275,6 +253,7 @@ export async function startDirect(currentUserId, targetUserId) {
 
 // --------------------------------------------
 //  startGroup – create group
+//  ✅ FIXED: no duplicate creator insert
 // --------------------------------------------
 export async function startGroup(creatorId, memberIds, groupName) {
   try {
@@ -285,14 +264,13 @@ export async function startGroup(creatorId, memberIds, groupName) {
       .single()
     if (createErr) throw createErr
 
-    const members = [
-      { user_id: creatorId, role: 'admin' },
-      ...memberIds.map(id => ({ user_id: id, role: 'member' }))
-    ]
-    const { error: memberErr } = await supabase
-      .from('conversation_members')
-      .insert(members.map(m => ({ conversation_id: conv.id, ...m })))
-    if (memberErr) throw memberErr
+    // ✅ Only insert other members – the trigger adds the creator
+    if (memberIds.length) {
+      const { error: memberErr } = await supabase
+        .from('conversation_members')
+        .insert(memberIds.map(id => ({ conversation_id: conv.id, user_id: id, role: 'member' })))
+      if (memberErr) throw memberErr
+    }
 
     return conv.id
   } catch (err) {
