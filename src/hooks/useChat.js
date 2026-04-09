@@ -2,72 +2,9 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
-// Add this to useChat.js (after the other exports)
-
-export function usePresence(userId) {
-  const [isOnline, setIsOnline] = useState(false)
-  const [lastSeen, setLastSeen] = useState(null)
-
-  useEffect(() => {
-    if (!userId) return
-
-    // Subscribe to profile changes (online status)
-    const channel = supabase
-      .channel(`presence:${userId}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'profiles',
-        filter: `id=eq.${userId}`
-      }, (payload) => {
-        setIsOnline(payload.new.is_online)
-        setLastSeen(payload.new.last_seen)
-      })
-      .subscribe()
-
-    // Initial fetch
-    const fetchStatus = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('is_online, last_seen')
-        .eq('id', userId)
-        .single()
-      if (data) {
-        setIsOnline(data.is_online)
-        setLastSeen(data.last_seen)
-      }
-    }
-    fetchStatus()
-
-    // Update own online status periodically (every 30s)
-    let interval
-    if (userId === supabase.auth.user()?.id) {
-      const updateOnline = async () => {
-        await supabase
-          .from('profiles')
-          .update({ is_online: true, last_seen: new Date().toISOString() })
-          .eq('id', userId)
-      }
-      updateOnline()
-      interval = setInterval(updateOnline, 30000)
-
-      window.addEventListener('beforeunload', () => {
-        supabase.from('profiles').update({ is_online: false }).eq('id', userId)
-      })
-    }
-
-    return () => {
-      supabase.removeChannel(channel)
-      if (interval) clearInterval(interval)
-      if (userId === supabase.auth.user()?.id) {
-        supabase.from('profiles').update({ is_online: false }).eq('id', userId)
-      }
-    }
-  }, [userId])
-
-  return { isOnline, lastSeen }
-}
-
+// --------------------------------------------
+//  useMessages – real‑time messages & typing
+// --------------------------------------------
 export function useMessages(conversationId) {
   const { user } = useAuth()
   const [msgs, setMsgs] = useState([])
@@ -75,10 +12,10 @@ export function useMessages(conversationId) {
   const [typing, setTyping] = useState([])
   const bottomRef = useRef(null)
 
-  // Fetch messages
   useEffect(() => {
     if (!conversationId) return
     setLoading(true)
+
     const fetchMsgs = async () => {
       const { data, error } = await supabase
         .from('messages')
@@ -97,7 +34,6 @@ export function useMessages(conversationId) {
     }
     fetchMsgs()
 
-    // Real‑time subscription
     const channel = supabase
       .channel(`messages:${conversationId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
@@ -121,7 +57,7 @@ export function useMessages(conversationId) {
     return () => { supabase.removeChannel(channel) }
   }, [conversationId])
 
-  // Typing indicators real‑time
+  // Typing indicators
   useEffect(() => {
     if (!conversationId) return
     const typingChannel = supabase
@@ -183,60 +119,96 @@ export function useMessages(conversationId) {
   return { msgs, loading, typing, sendMessage, deleteMessage, editMessage, reactToMessage, startTyping, bottomRef }
 }
 
+// --------------------------------------------
+//  useConversations – fetch & real‑time
+// --------------------------------------------
 export function useConversations() {
   const { user } = useAuth()
   const [convs, setConvs] = useState([])
   const [loading, setLoading] = useState(true)
 
   const fetchConversations = async () => {
-    const { data, error } = await supabase
-      .from('conversation_members')
-      .select(`
-        conversation_id,
-        conversations:conversation_id (
-          id, type, name, avatar_url, updated_at,
-          members:conversation_members!inner (
-            user_id, role,
-            profiles:user_id (id, username, display_name, avatar_url, is_online, last_seen)
-          )
-        )
-      `)
-      .eq('user_id', user.id)
-      .order('updated_at', { ascending: false, foreignTable: 'conversations' })
+    if (!user) return
 
-    if (error) {
-      console.error(error)
+    // 1. Get conversation IDs the user is member of
+    const { data: memberships, error: memErr } = await supabase
+      .from('conversation_members')
+      .select('conversation_id, role')
+      .eq('user_id', user.id)
+
+    if (memErr || !memberships?.length) {
       setConvs([])
-    } else {
-      // Transform to flat structure
-      const formatted = data.map(item => ({
-        id: item.conversations.id,
-        type: item.conversations.type,
-        name: item.conversations.name,
-        updated_at: item.conversations.updated_at,
-        members: item.conversations.members.filter(m => m.user_id !== user.id).map(m => m.profiles),
-        allMembers: item.conversations.members.map(m => ({ ...m.profiles, role: m.role }))
-      }))
-      setConvs(formatted)
+      setLoading(false)
+      return
     }
+
+    const convIds = memberships.map(m => m.conversation_id)
+
+    // 2. Fetch conversation details
+    const { data: conversations, error: convErr } = await supabase
+      .from('conversations')
+      .select('*')
+      .in('id', convIds)
+      .order('updated_at', { ascending: false })
+
+    if (convErr) {
+      console.error(convErr)
+      setConvs([])
+      setLoading(false)
+      return
+    }
+
+    // 3. For each conversation, fetch members (excluding current user)
+    const convsWithMembers = await Promise.all(
+      conversations.map(async (conv) => {
+        const { data: members } = await supabase
+          .from('conversation_members')
+          .select(`
+            user_id,
+            role,
+            profiles:user_id (
+              id, username, display_name, avatar_url, is_online, last_seen, bio, created_at
+            )
+          `)
+          .eq('conversation_id', conv.id)
+
+        const allMembers = members?.map(m => ({
+          ...m.profiles,
+          role: m.role
+        })) || []
+
+        const otherMembers = allMembers.filter(m => m.id !== user.id)
+
+        return {
+          ...conv,
+          members: otherMembers,
+          allMembers
+        }
+      })
+    )
+
+    setConvs(convsWithMembers)
     setLoading(false)
   }
 
   useEffect(() => {
-    if (user) fetchConversations()
+    fetchConversations()
 
-    // Realtime for new conversations & updates
     const channel = supabase
-      .channel('conversations')
+      .channel('conversations-updates')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversation_members' }, () => fetchConversations())
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversations' }, () => fetchConversations())
       .subscribe()
+
     return () => supabase.removeChannel(channel)
   }, [user])
 
   return { convs, loading, refetch: fetchConversations }
 }
 
+// --------------------------------------------
+//  useUsers – search profiles
+// --------------------------------------------
 export function useUsers() {
   const search = async (query) => {
     let q = supabase.from('profiles').select('*')
@@ -248,47 +220,71 @@ export function useUsers() {
   return { search }
 }
 
+// --------------------------------------------
+//  startDirect – create or get existing DM
+// --------------------------------------------
 export async function startDirect(currentUserId, targetUserId) {
-  // Check existing direct conversation
-  const { data: existing } = await supabase
+  // Get all conversation IDs where current user is a member
+  const { data: myConvs, error: myErr } = await supabase
     .from('conversation_members')
     .select('conversation_id')
     .eq('user_id', currentUserId)
-    .filter('conversation_id', 'in', 
-      supabase.from('conversation_members').select('conversation_id').eq('user_id', targetUserId)
-    )
-    .limit(1)
-  
-  if (existing?.length) return existing[0].conversation_id
+  if (myErr) return null
+
+  const convIds = myConvs.map(c => c.conversation_id)
+  if (convIds.length) {
+    const { data: existing } = await supabase
+      .from('conversation_members')
+      .select('conversation_id')
+      .eq('user_id', targetUserId)
+      .in('conversation_id', convIds)
+      .limit(1)
+    if (existing?.length) return existing[0].conversation_id
+  }
 
   // Create new direct conversation
-  const { data: conv, error } = await supabase
+  const { data: conv, error: createErr } = await supabase
     .from('conversations')
     .insert({ type: 'direct', created_by: currentUserId })
     .select()
     .single()
-  if (error) return null
+  if (createErr) return null
 
-  await supabase.from('conversation_members').insert([
-    { conversation_id: conv.id, user_id: currentUserId, role: 'admin' },
-    { conversation_id: conv.id, user_id: targetUserId, role: 'member' }
-  ])
+  const { error: memberErr } = await supabase
+    .from('conversation_members')
+    .insert([
+      { conversation_id: conv.id, user_id: currentUserId, role: 'admin' },
+      { conversation_id: conv.id, user_id: targetUserId, role: 'member' }
+    ])
+  if (memberErr) return null
   return conv.id
 }
 
+// --------------------------------------------
+//  startGroup – create group
+// --------------------------------------------
 export async function startGroup(creatorId, memberIds, groupName) {
-  const { data: conv, error } = await supabase
+  const { data: conv, error: createErr } = await supabase
     .from('conversations')
     .insert({ type: 'group', name: groupName, created_by: creatorId })
     .select()
     .single()
-  if (error) return null
+  if (createErr) return null
 
-  const members = [{ user_id: creatorId, role: 'admin' }, ...memberIds.map(id => ({ user_id: id, role: 'member' }))]
-  await supabase.from('conversation_members').insert(members.map(m => ({ conversation_id: conv.id, ...m })))
+  const members = [
+    { user_id: creatorId, role: 'admin' },
+    ...memberIds.map(id => ({ user_id: id, role: 'member' }))
+  ]
+  const { error: memberErr } = await supabase
+    .from('conversation_members')
+    .insert(members.map(m => ({ conversation_id: conv.id, ...m })))
+  if (memberErr) return null
   return conv.id
 }
 
+// --------------------------------------------
+//  avatarColor helper
+// --------------------------------------------
 export function avatarColor(name) {
   let hash = 0
   for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash) + name.charCodeAt(i)
