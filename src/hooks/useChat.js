@@ -88,6 +88,7 @@ export function useMessages(conversationId) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
       return true
     }
+    console.error('Send message error:', error)
     return false
   }
 
@@ -167,7 +168,7 @@ export function useConversations() {
             user_id,
             role,
             profiles:user_id (
-              id, username, display_name, avatar_url, is_online, last_seen, bio, created_at
+              id, username, display_name, avatar_url, is_online, last_seen, bio, created_at, email
             )
           `)
           .eq('conversation_id', conv.id)
@@ -214,8 +215,11 @@ export function useUsers() {
     let q = supabase.from('profiles').select('*')
     if (query) q = q.ilike('username', `%${query}%`).or(`display_name.ilike.%${query}%`)
     const { data, error } = await q.limit(20)
-    if (error) return []
-    return data
+    if (error) {
+      console.error('Search error:', error)
+      return []
+    }
+    return data || []
   }
   return { search }
 }
@@ -224,62 +228,77 @@ export function useUsers() {
 //  startDirect – create or get existing DM
 // --------------------------------------------
 export async function startDirect(currentUserId, targetUserId) {
-  // Get all conversation IDs where current user is a member
-  const { data: myConvs, error: myErr } = await supabase
-    .from('conversation_members')
-    .select('conversation_id')
-    .eq('user_id', currentUserId)
-  if (myErr) return null
-
-  const convIds = myConvs.map(c => c.conversation_id)
-  if (convIds.length) {
-    const { data: existing } = await supabase
+  try {
+    // First, find if a direct conversation already exists between these two users
+    const { data: myConvs, error: myErr } = await supabase
       .from('conversation_members')
       .select('conversation_id')
-      .eq('user_id', targetUserId)
-      .in('conversation_id', convIds)
-      .limit(1)
-    if (existing?.length) return existing[0].conversation_id
+      .eq('user_id', currentUserId)
+    if (myErr) throw myErr
+
+    const convIds = myConvs.map(c => c.conversation_id)
+    if (convIds.length) {
+      const { data: existing, error: existErr } = await supabase
+        .from('conversation_members')
+        .select('conversation_id')
+        .eq('user_id', targetUserId)
+        .in('conversation_id', convIds)
+        .limit(1)
+      if (!existErr && existing?.length) {
+        return existing[0].conversation_id
+      }
+    }
+
+    // Create new direct conversation
+    const { data: conv, error: createErr } = await supabase
+      .from('conversations')
+      .insert({ type: 'direct', created_by: currentUserId })
+      .select()
+      .single()
+    if (createErr) throw createErr
+
+    // Add members
+    const { error: memberErr } = await supabase
+      .from('conversation_members')
+      .insert([
+        { conversation_id: conv.id, user_id: currentUserId, role: 'admin' },
+        { conversation_id: conv.id, user_id: targetUserId, role: 'member' }
+      ])
+    if (memberErr) throw memberErr
+
+    return conv.id
+  } catch (err) {
+    console.error('startDirect error:', err)
+    return null
   }
-
-  // Create new direct conversation
-  const { data: conv, error: createErr } = await supabase
-    .from('conversations')
-    .insert({ type: 'direct', created_by: currentUserId })
-    .select()
-    .single()
-  if (createErr) return null
-
-  const { error: memberErr } = await supabase
-    .from('conversation_members')
-    .insert([
-      { conversation_id: conv.id, user_id: currentUserId, role: 'admin' },
-      { conversation_id: conv.id, user_id: targetUserId, role: 'member' }
-    ])
-  if (memberErr) return null
-  return conv.id
 }
 
 // --------------------------------------------
 //  startGroup – create group
 // --------------------------------------------
 export async function startGroup(creatorId, memberIds, groupName) {
-  const { data: conv, error: createErr } = await supabase
-    .from('conversations')
-    .insert({ type: 'group', name: groupName, created_by: creatorId })
-    .select()
-    .single()
-  if (createErr) return null
+  try {
+    const { data: conv, error: createErr } = await supabase
+      .from('conversations')
+      .insert({ type: 'group', name: groupName, created_by: creatorId })
+      .select()
+      .single()
+    if (createErr) throw createErr
 
-  const members = [
-    { user_id: creatorId, role: 'admin' },
-    ...memberIds.map(id => ({ user_id: id, role: 'member' }))
-  ]
-  const { error: memberErr } = await supabase
-    .from('conversation_members')
-    .insert(members.map(m => ({ conversation_id: conv.id, ...m })))
-  if (memberErr) return null
-  return conv.id
+    const members = [
+      { user_id: creatorId, role: 'admin' },
+      ...memberIds.map(id => ({ user_id: id, role: 'member' }))
+    ]
+    const { error: memberErr } = await supabase
+      .from('conversation_members')
+      .insert(members.map(m => ({ conversation_id: conv.id, ...m })))
+    if (memberErr) throw memberErr
+
+    return conv.id
+  } catch (err) {
+    console.error('startGroup error:', err)
+    return null
+  }
 }
 
 // --------------------------------------------
