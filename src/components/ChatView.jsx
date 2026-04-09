@@ -8,7 +8,6 @@ import Avatar from './Avatar'
 import MessageBubble from './MessageBubble'
 import CallModal from './CallModal'
 
-
 export default function ChatView({ conv, onShowInfo }) {
   const { user } = useAuth()
   const { msgs, loading, typing, sendMessage, deleteMessage, editMessage, reactToMessage, startTyping, bottomRef } = useMessages(conv?.id)
@@ -27,9 +26,16 @@ export default function ChatView({ conv, onShowInfo }) {
   const online = partner?.is_online
 
   useEffect(() => { taRef.current?.focus() }, [conv?.id])
+
+  // Close emoji picker when clicking outside
   useEffect(() => {
-    const handleClickOutside = (e) => { if (emojiButtonRef.current && !emojiButtonRef.current.contains(e.target)) setShowEmojiPicker(false) }
-    document.addEventListener('mousedown', handleClickOutside); return () => document.removeEventListener('mousedown', handleClickOutside)
+    const handleClickOutside = (e) => {
+      if (emojiButtonRef.current && !emojiButtonRef.current.contains(e.target)) {
+        setShowEmojiPicker(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   const handleSend = async () => {
@@ -42,17 +48,28 @@ export default function ChatView({ conv, onShowInfo }) {
   }
 
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }
+  
   const onInput = (e) => {
-    setText(e.target.value); startTyping()
+    setText(e.target.value)
+    startTyping()
     const ta = e.target; ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'
   }
-  const onEmojiClick = (emojiObject) => { setText(prev => prev + emojiObject.emoji); setShowEmojiPicker(false); taRef.current?.focus() }
+
+  // ✅ Corrected emoji handler for emoji-picker-react v4+
+  const onEmojiClick = (emojiData) => {
+    // emojiData can be an object with .emoji property or just the emoji string depending on version
+    const emoji = emojiData.emoji || emojiData
+    setText(prev => prev + emoji)
+    setShowEmojiPicker(false)
+    taRef.current?.focus()
+  }
 
   const grouped = groupByDate(msgs)
   if (!conv) return <div className="loading-screen"><div className="spinner" /></div>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Header */}
       <div className="chat-head">
         <div className="av" style={{ position: 'relative', cursor: 'pointer' }} onClick={onShowInfo}>
           <Avatar name={name} src={partner?.avatar_url} size={42} />
@@ -71,12 +88,15 @@ export default function ChatView({ conv, onShowInfo }) {
           <button className="icon-btn" onClick={onShowInfo}><Info size={16} /></button>
         </div>
       </div>
+
+      {/* Messages */}
       <div className="msgs-scroll">
         {loading ? (
           <div style={{ display:'flex', justifyContent:'center', padding:48 }}><div className="spinner" /></div>
         ) : msgs.length === 0 ? (
           <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flex:1, gap:12, color:'var(--ink-40)', paddingTop:60 }}>
-            <div style={{ fontSize:48 }}>💬</div><p style={{ fontSize:14, textAlign:'center' }}>No messages yet. Say hi to {name}!</p>
+            <div style={{ fontSize:48 }}>💬</div>
+            <p style={{ fontSize:14, textAlign:'center' }}>No messages yet. Say hi to {name}!</p>
           </div>
         ) : (
           grouped.map(({ date, items }) => (
@@ -100,32 +120,83 @@ export default function ChatView({ conv, onShowInfo }) {
         {typing.length > 0 && (
           <div className="typing-wrap">
             <div className="typing-bubble"><div className="td" /><div className="td" /><div className="td" /></div>
-            <div style={{ fontSize:11, color:'var(--ink-40)', marginTop:3, paddingLeft:4 }}>{typing.map(t => t.profiles?.display_name).join(', ')} typing…</div>
+            <div style={{ fontSize:11, color:'var(--ink-40)', marginTop:3, paddingLeft:4 }}>
+              {typing.map(t => t.profiles?.display_name).join(', ')} typing…
+            </div>
           </div>
         )}
         <div ref={bottomRef} />
       </div>
+
+      {/* Input Area */}
       <div className="chat-input-zone">
         {replyTo && (
           <div className="reply-bar">
-            <div className="rb-body"><div className="rb-name">↩ {replyTo.profiles?.display_name || 'Reply'}</div><div className="rb-text">{replyTo.content?.slice(0, 80)}</div></div>
+            <div className="rb-body">
+              <div className="rb-name">↩ {replyTo.profiles?.display_name || 'Reply'}</div>
+              <div className="rb-text">{replyTo.content?.slice(0, 80)}</div>
+            </div>
             <button className="icon-btn" onClick={() => setReplyTo(null)}><X size={14} /></button>
           </div>
         )}
         <div className="input-row">
           <button className="icon-btn"><Paperclip size={17} /></button>
           <div className="input-box" style={{ position: 'relative' }}>
-            <button ref={emojiButtonRef} className="icon-btn" style={{ width:28, height:28, flexShrink:0 }} onClick={() => setShowEmojiPicker(!showEmojiPicker)}><Smile size={17} /></button>
-            {showEmojiPicker && <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: 8, zIndex: 1000 }}><EmojiPicker onEmojiClick={onEmojiClick} /></div>}
-            <textarea ref={taRef} className="msg-inp" placeholder="Type a message…" value={text} onChange={onInput} onKeyDown={onKey} rows={1} />
+            <button
+              ref={emojiButtonRef}
+              className="icon-btn"
+              style={{ width:28, height:28, flexShrink:0 }}
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            >
+              <Smile size={17} />
+            </button>
+            {showEmojiPicker && (
+              <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: 8, zIndex: 1000 }}>
+                <EmojiPicker onEmojiClick={onEmojiClick} />
+              </div>
+            )}
+            <textarea
+              ref={taRef}
+              className="msg-inp"
+              placeholder="Type a message…"
+              value={text}
+              onChange={onInput}
+              onKeyDown={onKey}
+              rows={1}
+            />
           </div>
-          <button className="send-btn" onClick={handleSend} disabled={!text.trim() || sending}>{text.trim() ? <Send size={17} /> : <Mic size={17} />}</button>
+          <button className="send-btn" onClick={handleSend} disabled={!text.trim() || sending}>
+            {text.trim() ? <Send size={17} /> : <Mic size={17} />}
+          </button>
         </div>
       </div>
-      {showCallModal && <CallModal conversationId={conv?.id} currentUserId={user.id} targetUserId={partner?.id} onClose={() => setShowCallModal(false)} isVideo={isVideoCall} />}
+
+      {showCallModal && (
+        <CallModal
+          conversationId={conv?.id}
+          currentUserId={user.id}
+          targetUserId={partner?.id}
+          onClose={() => setShowCallModal(false)}
+          isVideo={isVideoCall}
+        />
+      )}
     </div>
   )
 }
 
-function groupByDate(msgs) { const map = {}; for (const m of msgs) { const d = format(new Date(m.created_at), 'yyyy-MM-dd'); if (!map[d]) map[d] = []; map[d].push(m) } return Object.entries(map).map(([date, items]) => ({ date, items })) }
-function dateLabel(str) { const d = new Date(str); if (isToday(d)) return 'Today'; if (isYesterday(d)) return 'Yesterday'; return format(d, 'MMMM d, yyyy') }
+function groupByDate(msgs) {
+  const map = {}
+  for (const m of msgs) {
+    const d = format(new Date(m.created_at), 'yyyy-MM-dd')
+    if (!map[d]) map[d] = []
+    map[d].push(m)
+  }
+  return Object.entries(map).map(([date, items]) => ({ date, items }))
+}
+
+function dateLabel(str) {
+  const d = new Date(str)
+  if (isToday(d)) return 'Today'
+  if (isYesterday(d)) return 'Yesterday'
+  return format(d, 'MMMM d, yyyy')
+}
