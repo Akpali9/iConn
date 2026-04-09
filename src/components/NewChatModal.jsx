@@ -19,21 +19,24 @@ export default function NewChatModal({ mode, onClose, onCreated }) {
     return () => clearTimeout(t)
   }, [q])
 
-  const toggle = (u) => {
-    if (mode === 'direct') { create(u.id); return }
-    setSel(p => p.find(x => x.id === u.id) ? p.filter(x => x.id !== u.id) : [...p, u])
+  const handleUserSelect = async (u) => {
+    if (mode === 'direct') {
+      setBusy(true)
+      const convId = await startDirect(user.id, u.id)
+      setBusy(false)
+      if (convId) onCreated(convId)
+    } else {
+      // Group mode: toggle selection
+      setSel(prev => prev.find(x => x.id === u.id) ? prev.filter(x => x.id !== u.id) : [...prev, u])
+    }
   }
 
-  const create = async (targetId) => {
+  const createGroup = async () => {
+    if (!gName.trim() || sel.length === 0) return
     setBusy(true)
-    let id
-    if (mode === 'direct') id = await startDirect(user.id, targetId)
-    else {
-      if (!gName.trim() || sel.length === 0) { setBusy(false); return }
-      id = await startGroup(user.id, sel.map(s => s.id), gName.trim())
-    }
+    const convId = await startGroup(user.id, sel.map(s => s.id), gName.trim())
     setBusy(false)
-    if (id) onCreated(id)
+    if (convId) onCreated(convId)
   }
 
   return (
@@ -57,7 +60,7 @@ export default function NewChatModal({ mode, onClose, onCreated }) {
                     <div key={u.id} style={{ display:'flex', alignItems:'center', gap:5, background:'var(--canvas)', border:'1.5px solid var(--canvas-3)', borderRadius:99, padding:'3px 10px 3px 5px', fontSize:13 }}>
                       <Avatar name={u.display_name||u.username} size={22} />
                       <span>{u.display_name||u.username}</span>
-                      <button onClick={() => toggle(u)} style={{ background:'none', border:'none', color:'var(--ink-40)', fontSize:15, padding:0, marginLeft:2 }}>×</button>
+                      <button onClick={() => handleUserSelect(u)} style={{ background:'none', border:'none', color:'var(--ink-40)', fontSize:15, padding:0, marginLeft:2 }}>×</button>
                     </div>
                   ))}
                 </div>
@@ -73,7 +76,7 @@ export default function NewChatModal({ mode, onClose, onCreated }) {
           ) : results.map(u => {
             const isSel = sel.find(s => s.id === u.id)
             return (
-              <div key={u.id} className={`user-row ${isSel?'sel':''}`} onClick={() => toggle(u)}>
+              <div key={u.id} className={`user-row ${isSel?'sel':''}`} onClick={() => handleUserSelect(u)}>
                 <div className="av" style={{ position:'relative' }}>
                   <Avatar name={u.display_name||u.username} src={u.avatar_url} size={44} />
                   {u.is_online && <div className="av-dot" />}
@@ -89,7 +92,7 @@ export default function NewChatModal({ mode, onClose, onCreated }) {
         </div>
         {mode === 'group' && (
           <div className="modal-foot">
-            <button className="btn-primary" onClick={() => create()} disabled={busy || !gName.trim() || sel.length === 0}>
+            <button className="btn-primary" onClick={createGroup} disabled={busy || !gName.trim() || sel.length === 0}>
               {busy ? 'Creating…' : `Create group (${sel.length} member${sel.length !== 1 ? 's' : ''})`}
             </button>
           </div>
