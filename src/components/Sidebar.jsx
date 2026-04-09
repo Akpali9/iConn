@@ -66,6 +66,16 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
             <input className="search-inp" placeholder="Search conversations…" value={q} onChange={e => setQ(e.target.value)} />
           </div>
         </div>
+
+        {/* Profile section – placed prominently at the top */}
+        <div className="sidebar-profile-top" onClick={() => onShowProfile(profile)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
+          <Avatar name={profile.display_name || ''} src={profile.avatar_url} size={48} />
+          <div>
+            <div style={{ fontWeight: 600 }}>{profile.display_name || 'You'}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>@{profile.username}</div>
+          </div>
+        </div>
+
         <div className="sidebar-tabs">
           {[['all','All'],['direct','Chats'],['groups','Groups']].map(([k,l]) => (
             <button key={k} className={`stab ${tab===k?'on':''}`} onClick={() => setTab(k)}>{l}</button>
@@ -115,12 +125,12 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
   )
 }
 
+// ConvRow, GrpAv, SkelItem, convName remain unchanged (same as previous)
 function ConvRow({ c, active, onClick, onShowProfile, onDelete }) {
   const name = convName(c)
   const member = c.members?.[0]
   const online = c.type === 'direct' && member?.is_online
   const ago = c.updated_at ? formatDistanceToNow(new Date(c.updated_at), { addSuffix: false }) : ''
-
   return (
     <div className={`conv-item ${active ? 'active' : ''}`} onClick={onClick}>
       <div className="av" style={{ position: 'relative', cursor: c.type === 'direct' ? 'pointer' : 'default' }} onClick={(e) => { e.stopPropagation(); if (c.type === 'direct' && member) onShowProfile(member); }}>
@@ -131,38 +141,10 @@ function ConvRow({ c, active, onClick, onShowProfile, onDelete }) {
         <div className="conv-row1"><span className="conv-name">{name}</span><span className="conv-time">{ago}</span></div>
         <div className="conv-row2"><span className="conv-preview">{c.type === 'group' ? `${(c.members?.length||0)+1} members` : online ? 'Online now' : 'Tap to chat'}</span></div>
       </div>
-      <button className="icon-btn delete-conv" onClick={(e) => onDelete(c.id, e)} title="Delete conversation" style={{ opacity: 0.6, transition: 'opacity 0.2s', marginLeft: 'auto', flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.opacity = 1} onMouseLeave={e => e.currentTarget.style.opacity = 0.6}><Trash2 size={14} /></button>
+      <button className="icon-btn delete-conv" onClick={(e) => onDelete(c.id, e)} title="Delete conversation" style={{ opacity: 0.6, transition: 'opacity 0.2s', marginLeft: 'auto', flexShrink: 0 }}><Trash2 size={14} /></button>
     </div>
   )
 }
-
-function GrpAv({ members = [] }) {
-  const show = members.slice(0, 4)
-  const colors = ['#e8501a','#1a6fe8','#1da462','#9333ea']
-  return (
-    <div className="grp-av">
-      {Array(4).fill(0).map((_,i) => (
-        <div key={i} className="grp-av-cell" style={{ background: show[i] ? colors[i] : 'var(--canvas-3)' }}>
-          {show[i] ? (show[i].display_name?.[0]||'?').toUpperCase() : ''}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function SkelItem() {
-  return (
-    <div className="conv-item" style={{ pointerEvents: 'none' }}>
-      <div className="skel" style={{ width:48, height:48, borderRadius:'50%', flexShrink:0 }} />
-      <div style={{ flex:1, display:'flex', flexDirection:'column', gap:8 }}>
-        <div className="skel" style={{ height:13, width:'55%' }} />
-        <div className="skel" style={{ height:11, width:'75%' }} />
-      </div>
-    </div>
-  )
-}
-
-function convName(c) {
-  if (c.type === 'group') return c.name || 'Group'
-  return c.members?.[0]?.display_name || c.members?.[0]?.username || 'Unknown'
-}
+function GrpAv({ members = [] }) { const show = members.slice(0,4); const colors=['#e8501a','#1a6fe8','#1da462','#9333ea']; return (<div className="grp-av">{Array(4).fill(0).map((_,i)=><div key={i} className="grp-av-cell" style={{background: show[i]?colors[i]:'var(--canvas-3)'}}>{show[i]?(show[i].display_name?.[0]||'?').toUpperCase():''}</div>)}</div>) }
+function SkelItem() { return (<div className="conv-item" style={{pointerEvents:'none'}}><div className="skel" style={{width:48,height:48,borderRadius:'50%',flexShrink:0}}/><div style={{flex:1,display:'flex',flexDirection:'column',gap:8}}><div className="skel" style={{height:13,width:'55%'}}/><div className="skel" style={{height:11,width:'75%'}}/></div></div>) }
+function convName(c) { if (c.type === 'group') return c.name || 'Group'; return c.members?.[0]?.display_name || c.members?.[0]?.username || 'Unknown' }
