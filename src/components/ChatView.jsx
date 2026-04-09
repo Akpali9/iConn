@@ -46,37 +46,21 @@ export default function ChatView({ conv, onShowInfo, onBack }) {
     if (!text.trim() || sending) return
     setSending(true)
     const ok = await sendMessage(text, replyTo?.id || null)
-    if (ok) {
-      setText('')
-      setReplyTo(null)
-      if (taRef.current) {
-        taRef.current.style.height = 'auto'
-        taRef.current.focus()
-      }
-    }
+    if (ok) { setText(''); setReplyTo(null); if (taRef.current) taRef.current.style.height = 'auto' }
     setSending(false)
+    taRef.current?.focus()
   }
 
-  const onKey = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
-  }
-
+  const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }
   const onInput = (e) => {
-    setText(e.target.value)
-    startTyping()
-    const ta = e.target
-    ta.style.height = 'auto'
-    ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'
+    setText(e.target.value); startTyping()
+    const ta = e.target; ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'
   }
 
   const onEmojiClick = (emojiObject) => {
     const emoji = emojiObject.emoji
     const textarea = taRef.current
     if (!textarea) return
-
     const start = textarea.selectionStart
     const end = textarea.selectionEnd
     const newText = text.substring(0, start) + emoji + text.substring(end)
@@ -90,17 +74,13 @@ export default function ChatView({ conv, onShowInfo, onBack }) {
   }
 
   const grouped = groupByDate(msgs)
-
   if (!conv) return <div className="loading-screen"><div className="spinner" /></div>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Header */}
       <div className="chat-head">
         {isMobile && onBack && (
-          <button className="icon-btn mobile-back-btn" onClick={onBack} style={{ marginRight: 8, fontSize: 20 }}>
-            ←
-          </button>
+          <button className="icon-btn mobile-back-btn" onClick={onBack} style={{ marginRight: 8, fontSize: 20 }}>←</button>
         )}
         <div className="av" style={{ position: 'relative', cursor: 'pointer' }} onClick={onShowInfo}>
           <Avatar name={name} src={partner?.avatar_url} size={42} />
@@ -113,30 +93,18 @@ export default function ChatView({ conv, onShowInfo, onBack }) {
           </div>
         </div>
         <div className="head-acts">
-          <button className="icon-btn" onClick={() => { setIsVideoCall(false); setShowCallModal(true) }} title="Voice call">
-            <Phone size={16} />
-          </button>
-          <button className="icon-btn" onClick={() => { setIsVideoCall(true); setShowCallModal(true) }} title="Video call">
-            <Video size={16} />
-          </button>
+          <button className="icon-btn" onClick={() => { setIsVideoCall(false); setShowCallModal(true) }}><Phone size={16} /></button>
+          <button className="icon-btn" onClick={() => { setIsVideoCall(true); setShowCallModal(true) }}><Video size={16} /></button>
           <button className="icon-btn"><Search size={16} /></button>
-          <button className="icon-btn" onClick={() => {
-            if (isGroup) setShowGroupInfo(true)
-            else onShowInfo()
-          }} title="Info">
-            <Info size={16} />
-          </button>
+          <button className="icon-btn" onClick={() => { if (isGroup) setShowGroupInfo(true); else onShowInfo() }}><Info size={16} /></button>
         </div>
       </div>
-
-      {/* Messages */}
       <div className="msgs-scroll">
         {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><div className="spinner" /></div>
+          <div style={{ display:'flex', justifyContent:'center', padding:48 }}><div className="spinner" /></div>
         ) : msgs.length === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 12, color: 'var(--ink-40)', paddingTop: 60 }}>
-            <div style={{ fontSize: 48 }}>💬</div>
-            <p style={{ fontSize: 14, textAlign: 'center' }}>No messages yet. Say hi to {name}!</p>
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flex:1, gap:12, color:'var(--ink-40)', paddingTop:60 }}>
+            <div style={{ fontSize:48 }}>💬</div><p style={{ fontSize:14, textAlign:'center' }}>No messages yet. Say hi to {name}!</p>
           </div>
         ) : (
           grouped.map(({ date, items }) => (
@@ -160,104 +128,37 @@ export default function ChatView({ conv, onShowInfo, onBack }) {
         {typing.length > 0 && (
           <div className="typing-wrap">
             <div className="typing-bubble"><div className="td" /><div className="td" /><div className="td" /></div>
-            <div style={{ fontSize: 11, color: 'var(--ink-40)', marginTop: 3, paddingLeft: 4 }}>
-              {typing.map(t => t.profiles?.display_name).join(', ')} typing…
-            </div>
+            <div style={{ fontSize:11, color:'var(--ink-40)', marginTop:3, paddingLeft:4 }}>{typing.map(t => t.profiles?.display_name).join(', ')} typing…</div>
           </div>
         )}
         <div ref={bottomRef} />
       </div>
-
-      {/* Input area with emoji picker */}
       <div className="chat-input-zone">
         {replyTo && (
           <div className="reply-bar">
-            <div className="rb-body">
-              <div className="rb-name">↩ {replyTo.profiles?.display_name || 'Reply'}</div>
-              <div className="rb-text">{replyTo.content?.slice(0, 80)}</div>
-            </div>
+            <div className="rb-body"><div className="rb-name">↩ {replyTo.profiles?.display_name || 'Reply'}</div><div className="rb-text">{replyTo.content?.slice(0, 80)}</div></div>
             <button className="icon-btn" onClick={() => setReplyTo(null)}><X size={14} /></button>
           </div>
         )}
         <div className="input-row">
           <button className="icon-btn"><Paperclip size={17} /></button>
           <div className="input-box" style={{ position: 'relative' }}>
-            <button
-              ref={emojiButtonRef}
-              className="icon-btn"
-              style={{ width: 28, height: 28, flexShrink: 0 }}
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              type="button"
-            >
-              <Smile size={17} />
-            </button>
+            <button ref={emojiButtonRef} className="icon-btn" style={{ width:28, height:28, flexShrink:0 }} onClick={() => setShowEmojiPicker(!showEmojiPicker)} type="button"><Smile size={17} /></button>
             {showEmojiPicker && (
-              <div
-                ref={emojiPickerRef}
-                style={{
-                  position: 'absolute',
-                  bottom: '100%',
-                  left: 0,
-                  marginBottom: '8px',
-                  zIndex: 1000,
-                  width: '320px'
-                }}
-              >
+              <div ref={emojiPickerRef} style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: '8px', zIndex: 1000, width: '320px' }}>
                 <EmojiPicker onEmojiClick={onEmojiClick} />
               </div>
             )}
-            <textarea
-              ref={taRef}
-              className="msg-inp"
-              placeholder="Type a message…"
-              value={text}
-              onChange={onInput}
-              onKeyDown={onKey}
-              rows={1}
-            />
+            <textarea ref={taRef} className="msg-inp" placeholder="Type a message…" value={text} onChange={onInput} onKeyDown={onKey} rows={1} />
           </div>
-          <button className="send-btn" onClick={handleSend} disabled={!text.trim() || sending}>
-            {text.trim() ? <Send size={17} /> : <Mic size={17} />}
-          </button>
+          <button className="send-btn" onClick={handleSend} disabled={!text.trim() || sending}>{text.trim() ? <Send size={17} /> : <Mic size={17} />}</button>
         </div>
       </div>
-
-      {/* Modals */}
-      {showCallModal && (
-        <CallModal
-          conversationId={conv?.id}
-          currentUserId={user.id}
-          targetUserId={partner?.id}
-          onClose={() => setShowCallModal(false)}
-          isVideo={isVideoCall}
-        />
-      )}
-      {showGroupInfo && (
-        <GroupInfoModal
-          conversation={conv}
-          onClose={() => setShowGroupInfo(false)}
-          currentUserId={user.id}
-          onUpdate={() => {}}
-        />
-      )}
+      {showCallModal && <CallModal conversationId={conv?.id} currentUserId={user.id} targetUserId={partner?.id} onClose={() => setShowCallModal(false)} isVideo={isVideoCall} />}
+      {showGroupInfo && <GroupInfoModal conversation={conv} onClose={() => setShowGroupInfo(false)} currentUserId={user.id} onUpdate={() => {}} />}
     </div>
   )
 }
 
-// Helper functions
-function groupByDate(msgs) {
-  const map = {}
-  for (const m of msgs) {
-    const d = format(new Date(m.created_at), 'yyyy-MM-dd')
-    if (!map[d]) map[d] = []
-    map[d].push(m)
-  }
-  return Object.entries(map).map(([date, items]) => ({ date, items }))
-}
-
-function dateLabel(str) {
-  const d = new Date(str)
-  if (isToday(d)) return 'Today'
-  if (isYesterday(d)) return 'Yesterday'
-  return format(d, 'MMMM d, yyyy')
-}
+function groupByDate(msgs) { const map = {}; for (const m of msgs) { const d = format(new Date(m.created_at), 'yyyy-MM-dd'); if (!map[d]) map[d] = []; map[d].push(m) } return Object.entries(map).map(([date, items]) => ({ date, items })) }
+function dateLabel(str) { const d = new Date(str); if (isToday(d)) return 'Today'; if (isYesterday(d)) return 'Yesterday'; return format(d, 'MMMM d, yyyy') }
