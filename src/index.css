@@ -18,94 +18,6 @@
   --canvas-3: #2a2a2f;
   --r-sm: 8px;
 }
-/* Mobile Responsive */
-/* Mobile Responsive */
-@media (max-width: 768px) {
-  .sidebar {
-    position: fixed;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 100%;
-    z-index: 100;
-    transform: translateX(-100%);
-    transition: transform 0.3s ease;
-  }
-  
-  .sidebar.open {
-    transform: translateX(0);
-  }
-  
-  .chat-area {
-    width: 100%;
-  }
-  
-  .mobile-back-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 8px;
-  }
-  
-  .chat-head {
-    padding-left: 12px;
-  }
-  
-  .msg-wrap {
-    max-width: 85%;
-  }
-  
-  .call-modal {
-    width: 95vw;
-    height: 70vh;
-  }
-  
-  .local-video {
-    width: 80px !important;
-    height: 120px !important;
-    bottom: 70px !important;
-  }
-  
-  .call-controls {
-    bottom: 16px;
-  }
-  
-  .call-btn {
-    width: 44px;
-    height: 44px;
-  }
-}
-
-@media (min-width: 769px) {
-  .mobile-back-btn {
-    display: none;
-  }
-  
-  .sidebar {
-    transform: translateX(0) !important;
-    position: relative;
-    width: 320px;
-  }
-  
-  .sidebar.open {
-    transform: translateX(0);
-  }
-}
-@media (min-width: 769px) {
-  .mobile-back-btn {
-    display: none;
-  }
-  
-  .sidebar {
-    transform: translateX(0) !important;
-    position: relative;
-    width: 320px;
-  }
-  
-  .sidebar.open {
-    transform: translateX(0);
-  }
-}
 
 * {
   box-sizing: border-box;
@@ -657,7 +569,99 @@ body {
   color: var(--text-dim);
 }
 .welcome-icon { font-size: 64px; }
+.spin { animation: spin 1s linear infinite; }
 
-.spin {
-  animation: spin 1s linear infinite;
+/* ========== MOBILE RESPONSIVE (FIXED) ========== */
+@media (max-width: 768px) {
+  /* Sidebar slides in from left */
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 85%;
+    max-width: 300px;
+    z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    background: var(--surface);
+    box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* Backdrop overlay */
+  .sidebar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease;
+  }
+  .sidebar-backdrop.open {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* Chat area takes full width */
+  .chat-area {
+    width: 100%;
+  }
+
+  /* Back button in chat header */
+  .mobile-back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+  }
+
+  .chat-head {
+    padding-left: 12px;
+  }
+
+  /* Message bubbles narrower */
+  .msg-wrap {
+    max-width: 85%;
+  }
+
+  /* Call modal adjustments */
+  .call-modal {
+    width: 95vw;
+    height: 70vh;
+  }
+  .local-video {
+    width: 80px !important;
+    height: 120px !important;
+    bottom: 70px !important;
+  }
+  .call-controls {
+    bottom: 16px;
+  }
+  .call-btn {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (min-width: 769px) {
+  /* Hide mobile back button on desktop */
+  .mobile-back-btn {
+    display: none;
+  }
+  /* Sidebar is always visible */
+  .sidebar {
+    transform: translateX(0) !important;
+    position: relative;
+    width: 320px;
+  }
+  .sidebar-backdrop {
+    display: none;
+  }
 }
