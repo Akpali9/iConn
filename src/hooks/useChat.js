@@ -12,6 +12,7 @@ export function useMessages(conversationId) {
   const [typing, setTyping] = useState([])
   const bottomRef = useRef(null)
 
+  // Fetch initial messages
   useEffect(() => {
     if (!conversationId) return
     setLoading(true)
@@ -34,6 +35,7 @@ export function useMessages(conversationId) {
     }
     fetchMsgs()
 
+    // Real‑time subscriptions
     const channel = supabase
       .channel(`messages:${conversationId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
@@ -76,49 +78,45 @@ export function useMessages(conversationId) {
     return () => { supabase.removeChannel(typingChannel) }
   }, [conversationId, user.id])
 
-  // ✅ Fixed: sendMessage with explicit type and conditional reply_to
+  // ✅ SEND – no manual state update (realtime does it)
   const sendMessage = async (content, replyToId = null) => {
-    if (!content.trim()) return false
-    if (!conversationId) {
-      console.error('sendMessage: conversationId is missing')
-      return false
-    }
+    if (!content.trim() || !conversationId) return false
 
-    const message = {
+    const { error } = await supabase.from('messages').insert({
       conversation_id: conversationId,
       sender_id: user.id,
       content: content.trim(),
       type: 'text',
-    }
-    // Only add reply_to if a value is provided (column now exists after running SQL)
-    if (replyToId) message.reply_to = replyToId
-
-    const { data, error } = await supabase
-      .from('messages')
-      .insert(message)
-      .select()
+      reply_to: replyToId || null,
+    })
 
     if (error) {
       console.error('sendMessage error:', error)
       alert(`Failed to send: ${error.message}`)
       return false
     }
-
-    if (data && data[0]) {
-      setMsgs(prev => [...prev, data[0]])
-    }
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     return true
   }
 
-  const deleteMessage = async (msgId) => {
-    await supabase.from('messages').update({ is_deleted: true, content: null }).eq('id', msgId)
-  }
-
+  // ✅ EDIT – only update what's needed
   const editMessage = async (msgId, newContent) => {
-    await supabase.from('messages').update({ content: newContent, is_edited: true }).eq('id', msgId)
+    const { error } = await supabase
+      .from('messages')
+      .update({ content: newContent.trim(), is_edited: true })
+      .eq('id', msgId)
+    if (error) console.error('editMessage error:', error)
   }
 
+  // ✅ DELETE – mark as deleted
+  const deleteMessage = async (msgId) => {
+    await supabase
+      .from('messages')
+      .update({ is_deleted: true, content: null })
+      .eq('id', msgId)
+  }
+
+  // ✅ REACT – toggle reaction
   const reactToMessage = async (msgId, emoji) => {
     const existing = msgs.find(m => m.id === msgId)?.reactions?.find(r => r.user_id === user.id && r.emoji === emoji)
     if (existing) {
@@ -128,6 +126,7 @@ export function useMessages(conversationId) {
     }
   }
 
+  // ✅ TYPING
   const startTyping = useCallback(async () => {
     await supabase.from('typing_indicators').upsert({
       conversation_id: conversationId,
@@ -228,7 +227,7 @@ export function useUsers() {
 }
 
 // --------------------------------------------
-//  startDirect – create or get existing DM (fixed: no duplicate creator insert)
+//  startDirect – create or get existing DM
 // --------------------------------------------
 export async function startDirect(currentUserId, targetUserId) {
   try {
@@ -272,7 +271,7 @@ export async function startDirect(currentUserId, targetUserId) {
 }
 
 // --------------------------------------------
-//  startGroup – create group (fixed: no duplicate creator insert)
+//  startGroup – create group
 // --------------------------------------------
 export async function startGroup(creatorId, memberIds, groupName) {
   try {
@@ -283,7 +282,6 @@ export async function startGroup(creatorId, memberIds, groupName) {
       .single()
     if (createErr) throw createErr
 
-    // Only insert other members – trigger adds creator
     if (memberIds.length) {
       const { error: memberErr } = await supabase
         .from('conversation_members')
