@@ -15,50 +15,43 @@ function App() {
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [profileUser, setProfileUser] = useState(null)
   const [showGroupInfo, setShowGroupInfo] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(true) // for desktop
-
-  // Detect mobile screen
-  const isMobile = window.innerWidth <= 768
-  const [mobileView, setMobileView] = useState('list') // 'list' or 'chat'
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
-    const handleResize = () => {
-      const mobile = window.innerWidth <= 768
-      if (!mobile) {
-        setMobileView('list')
-        setSidebarOpen(true)
-      }
-    }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
   }, [])
+
+  useEffect(() => {
+    if (!isMobile) setSidebarOpen(true)
+    else setSidebarOpen(false)
+  }, [isMobile])
 
   useEffect(() => {
     if (activeConvId === '__profile__') {
       setShowProfileModal(true)
       setProfileUser(profile)
       setActiveConvId(null)
-      if (isMobile) setMobileView('list')
     } else if (activeConvId) {
       const found = convs.find(c => c.id === activeConvId)
       setActiveConv(found)
-      if (isMobile) setMobileView('chat')
+      if (isMobile) setSidebarOpen(false)
     } else {
       setActiveConv(null)
-      if (isMobile) setMobileView('list')
     }
   }, [activeConvId, convs, profile, isMobile])
 
   const handleSelectConversation = (id) => {
     setActiveConvId(id)
-    if (isMobile) {
-      setSidebarOpen(false)
-    }
+    if (isMobile) setSidebarOpen(false)
   }
 
   const handleBackToList = () => {
     setActiveConvId(null)
-    setMobileView('list')
+    if (isMobile) setSidebarOpen(true)
   }
 
   if (authLoading) return <div className="loading-screen"><div className="spinner" /></div>
@@ -66,6 +59,11 @@ function App() {
 
   return (
     <div className="app">
+      {/* Backdrop overlay for mobile */}
+      {isMobile && (
+        <div className={`sidebar-backdrop ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />
+      )}
+      
       <div className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <Sidebar
           convs={convs}
@@ -73,9 +71,10 @@ function App() {
           activeId={activeConvId}
           onSelect={handleSelectConversation}
           onShowProfile={(u) => { setProfileUser(u); setShowProfileModal(true) }}
-          onCloseSidebar={() => isMobile && setSidebarOpen(false)}
+          onCloseSidebar={() => setSidebarOpen(false)}
         />
       </div>
+      
       <div className="chat-area">
         {activeConv ? (
           <ChatView
@@ -121,7 +120,7 @@ function App() {
             if (shouldRefresh) {
               setActiveConvId(null)
               refetchConvs()
-              if (isMobile) setMobileView('list')
+              if (isMobile) setSidebarOpen(true)
             }
           }}
           currentUserId={user.id}
