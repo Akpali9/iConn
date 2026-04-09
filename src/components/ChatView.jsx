@@ -8,6 +8,7 @@ import Avatar from './Avatar'
 import MessageBubble from './MessageBubble'
 import CallModal from './CallModal'
 
+
 export default function ChatView({ conv, onShowInfo }) {
   const { user } = useAuth()
   const { msgs, loading, typing, sendMessage, deleteMessage, editMessage, reactToMessage, startTyping, bottomRef } = useMessages(conv?.id)
