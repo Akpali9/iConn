@@ -57,6 +57,7 @@ export function useMessages(conversationId) {
     return () => { supabase.removeChannel(channel) }
   }, [conversationId])
 
+  // Typing indicators
   useEffect(() => {
     if (!conversationId) return
     const typingChannel = supabase
@@ -75,19 +76,39 @@ export function useMessages(conversationId) {
     return () => { supabase.removeChannel(typingChannel) }
   }, [conversationId, user.id])
 
+  // ✅ FIXED: sendMessage with explicit type and better error logging
   const sendMessage = async (content, replyToId = null) => {
     if (!content.trim()) return false
-    const { error } = await supabase.from('messages').insert({
+    if (!conversationId) {
+      console.error('sendMessage: conversationId is missing')
+      return false
+    }
+
+    const message = {
       conversation_id: conversationId,
       sender_id: user.id,
       content: content.trim(),
-      reply_to: replyToId,
-    })
-    if (!error) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-      return true
+      type: 'text',          // explicit type to avoid default issues
+      reply_to: replyToId || null,
     }
-    return false
+
+    const { data, error } = await supabase
+      .from('messages')
+      .insert(message)
+      .select()   // return the inserted message
+
+    if (error) {
+      console.error('sendMessage error:', error)
+      alert(`Failed to send: ${error.message}`)
+      return false
+    }
+
+    // Optional: manually add to state (realtime will also add it)
+    if (data && data[0]) {
+      setMsgs(prev => [...prev, data[0]])
+    }
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    return true
   }
 
   const deleteMessage = async (msgId) => {
@@ -208,11 +229,11 @@ export function useUsers() {
 
 // --------------------------------------------
 //  startDirect – create or get existing DM
-//  ✅ FIXED: no duplicate member insert
+//  (fixed: no duplicate creator insert)
 // --------------------------------------------
 export async function startDirect(currentUserId, targetUserId) {
   try {
-    // First, check if a direct conversation already exists
+    // Find existing direct conversation
     const { data: myConvs, error: myErr } = await supabase
       .from('conversation_members')
       .select('conversation_id')
@@ -238,7 +259,7 @@ export async function startDirect(currentUserId, targetUserId) {
       .single()
     if (createErr) throw createErr
 
-    // ✅ Only add the target member – the trigger adds the creator automatically
+    // Only add the target member – trigger adds creator
     const { error: memberErr } = await supabase
       .from('conversation_members')
       .insert({ conversation_id: conv.id, user_id: targetUserId, role: 'member' })
@@ -253,7 +274,7 @@ export async function startDirect(currentUserId, targetUserId) {
 
 // --------------------------------------------
 //  startGroup – create group
-//  ✅ FIXED: no duplicate creator insert
+//  (fixed: no duplicate creator insert)
 // --------------------------------------------
 export async function startGroup(creatorId, memberIds, groupName) {
   try {
@@ -264,7 +285,7 @@ export async function startGroup(creatorId, memberIds, groupName) {
       .single()
     if (createErr) throw createErr
 
-    // ✅ Only insert other members – the trigger adds the creator
+    // Only insert other members – trigger adds creator
     if (memberIds.length) {
       const { error: memberErr } = await supabase
         .from('conversation_members')
