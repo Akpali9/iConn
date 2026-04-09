@@ -1,21 +1,14 @@
 import { useState } from 'react'
-import { MessageCircle, Users, UserPlus, Search, LogOut } from 'lucide-react'
+import { MessageCircle, Users, UserPlus, Search, LogOut, Trash2 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { useAuth } from '../contexts/AuthContext'
 import Avatar from './Avatar'
 import NewChatModal from './NewChatModal'
+import { deleteConversation } from '../hooks/useChat'
 
 export default function Sidebar({ convs, loading, activeId, onSelect, onShowProfile }) {
   const { profile, signOut } = useAuth()
-
-  // 🔒 Critical: prevent rendering before profile is loaded
-  if (!profile) {
-    return (
-      <div className="loading-screen">
-        <div className="spinner" />
-      </div>
-    )
-  }
+  if (!profile) return <div className="loading-screen"><div className="spinner" /></div>
 
   const [q, setQ] = useState('')
   const [tab, setTab] = useState('all')
@@ -25,6 +18,18 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
     const name = convName(c)
     return name.toLowerCase().includes(q.toLowerCase())
   }).filter(c => tab === 'all' ? true : tab === 'groups' ? c.type === 'group' : c.type === 'direct')
+
+  const handleDelete = async (convId, e) => {
+    e.stopPropagation()
+    if (confirm('Delete this conversation permanently? All messages will be lost for everyone.')) {
+      const ok = await deleteConversation(convId)
+      if (ok) {
+        window.location.reload() // refresh sidebar
+      } else {
+        alert('Failed to delete conversation')
+      }
+    }
+  }
 
   return (
     <>
@@ -57,7 +62,14 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
             <div className="empty-list">{q ? 'No conversations match.' : 'No conversations yet.\nStart a new chat!'}</div>
           ) : (
             filtered.map(c => (
-              <ConvRow key={c.id} c={c} active={c.id === activeId} onClick={() => onSelect(c.id)} onShowProfile={onShowProfile} />
+              <ConvRow
+                key={c.id}
+                c={c}
+                active={c.id === activeId}
+                onClick={() => onSelect(c.id)}
+                onShowProfile={onShowProfile}
+                onDelete={handleDelete}
+              />
             ))
           )}
         </div>
@@ -70,29 +82,20 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
             <div className="sf-name">{profile.display_name || 'You'}</div>
             <div className="sf-handle">@{profile.username || ''}</div>
           </div>
-          <button className="icon-btn" onClick={e => { e.stopPropagation(); signOut() }} title="Sign out">
-            <LogOut size={15} />
-          </button>
+          <button className="icon-btn" onClick={e => { e.stopPropagation(); signOut() }} title="Sign out"><LogOut size={15} /></button>
         </div>
       </aside>
-      {modal && (
-        <NewChatModal
-          mode={modal}
-          onClose={() => setModal(null)}
-          onCreated={(id) => { setModal(null); onSelect(id) }}
-        />
-      )}
+      {modal && <NewChatModal mode={modal} onClose={() => setModal(null)} onCreated={(id) => { setModal(null); onSelect(id) }} />}
     </>
   )
 }
 
-// ========== Helper Components ==========
-
-function ConvRow({ c, active, onClick, onShowProfile }) {
+function ConvRow({ c, active, onClick, onShowProfile, onDelete }) {
   const name = convName(c)
   const member = c.members?.[0]
   const online = c.type === 'direct' && member?.is_online
   const ago = c.updated_at ? formatDistanceToNow(new Date(c.updated_at), { addSuffix: false }) : ''
+
   return (
     <div className={`conv-item ${active ? 'active' : ''}`} onClick={onClick}>
       <div className="av" style={{ position: 'relative', cursor: c.type === 'direct' ? 'pointer' : 'default' }} onClick={(e) => { e.stopPropagation(); if (c.type === 'direct' && member) onShowProfile(member); }}>
@@ -100,9 +103,24 @@ function ConvRow({ c, active, onClick, onShowProfile }) {
         {online && <div className="av-dot" />}
       </div>
       <div className="conv-body">
-        <div className="conv-row1"><span className="conv-name">{name}</span><span className="conv-time">{ago}</span></div>
-        <div className="conv-row2"><span className="conv-preview">{c.type === 'group' ? `${(c.members?.length||0)+1} members` : online ? 'Online now' : 'Tap to chat'}</span></div>
+        <div className="conv-row1">
+          <span className="conv-name">{name}</span>
+          <span className="conv-time">{ago}</span>
+        </div>
+        <div className="conv-row2">
+          <span className="conv-preview">{c.type === 'group' ? `${(c.members?.length||0)+1} members` : online ? 'Online now' : 'Tap to chat'}</span>
+        </div>
       </div>
+      <button
+        className="icon-btn delete-conv"
+        onClick={(e) => onDelete(c.id, e)}
+        title="Delete conversation"
+        style={{ opacity: 0.6, transition: 'opacity 0.2s', marginLeft: 'auto', flexShrink: 0 }}
+        onMouseEnter={e => e.currentTarget.style.opacity = 1}
+        onMouseLeave={e => e.currentTarget.style.opacity = 0.6}
+      >
+        <Trash2 size={14} />
+      </button>
     </div>
   )
 }
