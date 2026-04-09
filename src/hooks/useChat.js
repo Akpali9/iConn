@@ -76,7 +76,7 @@ export function useMessages(conversationId) {
     return () => { supabase.removeChannel(typingChannel) }
   }, [conversationId, user.id])
 
-  // ✅ FIXED: sendMessage with explicit type and better error logging
+  // ✅ Fixed: sendMessage with explicit type and conditional reply_to
   const sendMessage = async (content, replyToId = null) => {
     if (!content.trim()) return false
     if (!conversationId) {
@@ -88,14 +88,15 @@ export function useMessages(conversationId) {
       conversation_id: conversationId,
       sender_id: user.id,
       content: content.trim(),
-      type: 'text',          // explicit type to avoid default issues
-      reply_to: replyToId || null,
+      type: 'text',
     }
+    // Only add reply_to if a value is provided (column now exists after running SQL)
+    if (replyToId) message.reply_to = replyToId
 
     const { data, error } = await supabase
       .from('messages')
       .insert(message)
-      .select()   // return the inserted message
+      .select()
 
     if (error) {
       console.error('sendMessage error:', error)
@@ -103,7 +104,6 @@ export function useMessages(conversationId) {
       return false
     }
 
-    // Optional: manually add to state (realtime will also add it)
     if (data && data[0]) {
       setMsgs(prev => [...prev, data[0]])
     }
@@ -228,8 +228,7 @@ export function useUsers() {
 }
 
 // --------------------------------------------
-//  startDirect – create or get existing DM
-//  (fixed: no duplicate creator insert)
+//  startDirect – create or get existing DM (fixed: no duplicate creator insert)
 // --------------------------------------------
 export async function startDirect(currentUserId, targetUserId) {
   try {
@@ -273,8 +272,7 @@ export async function startDirect(currentUserId, targetUserId) {
 }
 
 // --------------------------------------------
-//  startGroup – create group
-//  (fixed: no duplicate creator insert)
+//  startGroup – create group (fixed: no duplicate creator insert)
 // --------------------------------------------
 export async function startGroup(creatorId, memberIds, groupName) {
   try {
