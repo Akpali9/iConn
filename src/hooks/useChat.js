@@ -274,3 +274,11 @@ export function avatarColor(name) {
   const hue = Math.abs(hash % 360)
   return `hsl(${hue}, 65%, 55%)`
 }
+export async function deleteConversation(convId) {
+  const { error } = await supabase.rpc('delete_conversation', { conv_id: convId })
+  if (error) {
+    console.error('deleteConversation error:', error)
+    return false
+  }
+  return true
+}
