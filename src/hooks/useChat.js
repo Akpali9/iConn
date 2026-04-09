@@ -12,16 +12,13 @@ export function useMessages(conversationId) {
   useEffect(() => {
     if (!conversationId) return
     setLoading(true)
-
     const fetchMsgs = async () => {
       const { data, error } = await supabase
         .from('messages')
         .select(`
           *,
           profiles:sender_id (id, username, display_name, avatar_url),
-          reply:messages!reply_to (
-            id, content, profiles:sender_id (display_name, username)
-          ),
+          reply:messages!reply_to (id, content, profiles:sender_id (display_name, username)),
           reactions (*, user_id)
         `)
         .eq('conversation_id', conversationId)
@@ -40,21 +37,15 @@ export function useMessages(conversationId) {
         }
       )
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
-        (payload) => {
-          setMsgs(prev => prev.map(m => m.id === payload.new.id ? payload.new : m))
-        }
+        (payload) => { setMsgs(prev => prev.map(m => m.id === payload.new.id ? payload.new : m)) }
       )
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
-        (payload) => {
-          setMsgs(prev => prev.filter(m => m.id !== payload.old.id))
-        }
+        (payload) => { setMsgs(prev => prev.filter(m => m.id !== payload.old.id)) }
       )
       .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
+    return () => supabase.removeChannel(channel)
   }, [conversationId])
 
-  // Typing indicators
   useEffect(() => {
     if (!conversationId) return
     const typingChannel = supabase
@@ -70,7 +61,7 @@ export function useMessages(conversationId) {
         }
       )
       .subscribe()
-    return () => { supabase.removeChannel(typingChannel) }
+    return () => supabase.removeChannel(typingChannel)
   }, [conversationId, user.id])
 
   const sendMessage = async (content, replyToId = null) => {
@@ -92,33 +83,20 @@ export function useMessages(conversationId) {
   }
 
   const editMessage = async (msgId, newContent) => {
-  if (!newContent.trim()) return;
-  
-  // Try to update with is_edited flag first
-  const { error } = await supabase
-    .from('messages')
-    .update({ content: newContent.trim(), is_edited: true })
-    .eq('id', msgId);
-    
-  if (error) {
-    // If column missing, retry without is_edited
-    if (error.message.includes('is_edited')) {
-      const { error: retryError } = await supabase
-        .from('messages')
-        .update({ content: newContent.trim() })
-        .eq('id', msgId);
-      if (retryError) console.error('editMessage fallback error:', retryError);
-    } else {
-      console.error('editMessage error:', error);
-      alert(`Failed to edit: ${error.message}`);
-    }
+    if (!newContent.trim()) return
+    const { error } = await supabase
+      .from('messages')
+      .update({ content: newContent.trim(), is_edited: true })
+      .eq('id', msgId)
+    if (error) console.error('editMessage error:', error)
   }
-};
+
   const deleteMessage = async (msgId) => {
-    await supabase
+    const { error } = await supabase
       .from('messages')
       .update({ is_deleted: true, content: null })
       .eq('id', msgId)
+    if (error) console.error('deleteMessage error:', error)
   }
 
   const reactToMessage = async (msgId, emoji) => {
@@ -153,9 +131,7 @@ export function useConversations() {
       .select('conversation_id, role')
       .eq('user_id', user.id)
     if (memErr || !memberships?.length) {
-      setConvs([])
-      setLoading(false)
-      return
+      setConvs([]); setLoading(false); return
     }
     const convIds = memberships.map(m => m.conversation_id)
     const { data: conversations, error: convErr } = await supabase
@@ -164,22 +140,13 @@ export function useConversations() {
       .in('id', convIds)
       .order('updated_at', { ascending: false, nullsFirst: false })
     if (convErr) {
-      console.error(convErr)
-      setConvs([])
-      setLoading(false)
-      return
+      console.error(convErr); setConvs([]); setLoading(false); return
     }
     const convsWithMembers = await Promise.all(
       conversations.map(async (conv) => {
         const { data: members } = await supabase
           .from('conversation_members')
-          .select(`
-            user_id,
-            role,
-            profiles:user_id (
-              id, username, display_name, avatar_url, is_online, last_seen, bio, created_at, email
-            )
-          `)
+          .select(`user_id, role, profiles:user_id (id, username, display_name, avatar_url, is_online, last_seen, bio, created_at, email)`)
           .eq('conversation_id', conv.id)
         const allMembers = members?.map(m => ({ ...m.profiles, role: m.role })) || []
         const otherMembers = allMembers.filter(m => m.id !== user.id)
@@ -199,7 +166,6 @@ export function useConversations() {
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [user])
-
   return { convs, loading, refetch: fetchConversations }
 }
 
@@ -216,62 +182,32 @@ export function useUsers() {
 
 export async function startDirect(currentUserId, targetUserId) {
   try {
-    const { data: myConvs, error: myErr } = await supabase
-      .from('conversation_members')
-      .select('conversation_id')
-      .eq('user_id', currentUserId)
-    if (myErr) throw myErr
+    const { data: myConvs } = await supabase.from('conversation_members').select('conversation_id').eq('user_id', currentUserId)
     const convIds = myConvs.map(c => c.conversation_id)
     if (convIds.length) {
-      const { data: existing } = await supabase
-        .from('conversation_members')
-        .select('conversation_id')
-        .eq('user_id', targetUserId)
-        .in('conversation_id', convIds)
-        .limit(1)
+      const { data: existing } = await supabase.from('conversation_members').select('conversation_id').eq('user_id', targetUserId).in('conversation_id', convIds).limit(1)
       if (existing?.length) return existing[0].conversation_id
     }
-    const { data: conv, error: createErr } = await supabase
-      .from('conversations')
-      .insert({ type: 'direct', created_by: currentUserId })
-      .select()
-      .single()
+    const { data: conv, error: createErr } = await supabase.from('conversations').insert({ type: 'direct', created_by: currentUserId }).select().single()
     if (createErr) throw createErr
-    const { error: memberErr } = await supabase
-      .from('conversation_members')
-      .insert({ conversation_id: conv.id, user_id: targetUserId, role: 'member' })
-    if (memberErr) throw memberErr
+    await supabase.from('conversation_members').insert({ conversation_id: conv.id, user_id: targetUserId, role: 'member' })
     return conv.id
-  } catch (err) {
-    console.error('startDirect error:', err)
-    return null
-  }
+  } catch (err) { console.error('startDirect error:', err); return null }
 }
 
 export async function startGroup(creatorId, memberIds, groupName) {
   try {
-    const { data: conv, error: createErr } = await supabase
-      .from('conversations')
-      .insert({ type: 'group', name: groupName, created_by: creatorId })
-      .select()
-      .single()
+    const { data: conv, error: createErr } = await supabase.from('conversations').insert({ type: 'group', name: groupName, created_by: creatorId }).select().single()
     if (createErr) throw createErr
     if (memberIds.length) {
-      const { error: memberErr } = await supabase
-        .from('conversation_members')
-        .insert(memberIds.map(id => ({ conversation_id: conv.id, user_id: id, role: 'member' })))
-      if (memberErr) throw memberErr
+      await supabase.from('conversation_members').insert(memberIds.map(id => ({ conversation_id: conv.id, user_id: id, role: 'member' })))
     }
     return conv.id
-  } catch (err) {
-    console.error('startGroup error:', err)
-    return null
-  }
+  } catch (err) { console.error('startGroup error:', err); return null }
 }
 
 export function avatarColor(name) {
-  let hash = 0
-  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash) + name.charCodeAt(i)
+  let hash = 0; for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash) + name.charCodeAt(i)
   const hue = Math.abs(hash % 360)
   return `hsl(${hue}, 65%, 55%)`
 }
