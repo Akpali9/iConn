@@ -39,6 +39,8 @@ export default function ChatView({ conv, onShowInfo }) {
 
   const grouped = groupByDate(msgs)
 
+  if (!conv) return <div className="loading-screen"><div className="spinner" /></div>
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="chat-head">
@@ -59,7 +61,6 @@ export default function ChatView({ conv, onShowInfo }) {
           <button className="icon-btn" onClick={onShowInfo}><Info size={16} /></button>
         </div>
       </div>
-
       <div className="msgs-scroll">
         {loading ? (
           <div style={{ display:'flex', justifyContent:'center', padding:48 }}><div className="spinner" /></div>
@@ -97,7 +98,6 @@ export default function ChatView({ conv, onShowInfo }) {
         )}
         <div ref={bottomRef} />
       </div>
-
       <div className="chat-input-zone">
         {replyTo && (
           <div className="reply-bar">
