@@ -22,6 +22,7 @@ function App() {
     const checkMobile = () => {
       const mobile = window.innerWidth <= 768
       setIsMobile(mobile)
+      // Desktop: always open sidebar; Mobile: closed by default
       if (!mobile) setSidebarOpen(true)
       else setSidebarOpen(false)
     }
@@ -38,7 +39,7 @@ function App() {
     } else if (activeConvId) {
       const found = convs.find(c => c.id === activeConvId)
       setActiveConv(found)
-      if (isMobile) setSidebarOpen(false)
+      if (isMobile) setSidebarOpen(false)  // close sidebar when a chat opens
     } else {
       setActiveConv(null)
     }
@@ -51,7 +52,7 @@ function App() {
 
   const handleBackToList = () => {
     setActiveConvId(null)
-    if (isMobile) setSidebarOpen(true)
+    if (isMobile) setSidebarOpen(true)   // open sidebar when returning to list
   }
 
   const toggleSidebar = () => {
@@ -63,12 +64,15 @@ function App() {
 
   return (
     <div className="app">
+      {/* Mobile backdrop */}
       {isMobile && (
         <div
           className={`sidebar-backdrop ${sidebarOpen ? 'open' : ''}`}
           onClick={() => setSidebarOpen(false)}
         />
       )}
+
+      {/* Sidebar */}
       <div className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <Sidebar
           convs={convs}
@@ -79,6 +83,8 @@ function App() {
           onCloseSidebar={() => setSidebarOpen(false)}
         />
       </div>
+
+      {/* Main chat area */}
       <div className="chat-area">
         {activeConv ? (
           <ChatView
@@ -106,6 +112,8 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* Modals */}
       {showProfileModal && (
         <ProfileModal
           user={profileUser}
