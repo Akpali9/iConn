@@ -42,6 +42,16 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
       <aside className="sidebar">
         <div className="sidebar-head">
           <div className="sidebar-top-row">
+         
+                {window.innerWidth <= 768 && (
+                  <button 
+                    className="icon-btn mobile-close-btn" 
+                    onClick={() => onCloseSidebar?.()}
+                    style={{ position: 'absolute', top: 16, right: 16 }}
+                  >
+                    ✕
+                  </button>
+                )}
             <div className="iconn-logo">
               <div className="iconn-logo-mark"><MessageCircle size={18} color="#fff" /></div>
               <span className="iconn-logo-name">i<span>Conn</span></span>
