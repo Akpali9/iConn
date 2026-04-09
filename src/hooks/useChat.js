@@ -2,6 +2,72 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
+// Add this to useChat.js (after the other exports)
+
+export function usePresence(userId) {
+  const [isOnline, setIsOnline] = useState(false)
+  const [lastSeen, setLastSeen] = useState(null)
+
+  useEffect(() => {
+    if (!userId) return
+
+    // Subscribe to profile changes (online status)
+    const channel = supabase
+      .channel(`presence:${userId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'profiles',
+        filter: `id=eq.${userId}`
+      }, (payload) => {
+        setIsOnline(payload.new.is_online)
+        setLastSeen(payload.new.last_seen)
+      })
+      .subscribe()
+
+    // Initial fetch
+    const fetchStatus = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('is_online, last_seen')
+        .eq('id', userId)
+        .single()
+      if (data) {
+        setIsOnline(data.is_online)
+        setLastSeen(data.last_seen)
+      }
+    }
+    fetchStatus()
+
+    // Update own online status periodically (every 30s)
+    let interval
+    if (userId === supabase.auth.user()?.id) {
+      const updateOnline = async () => {
+        await supabase
+          .from('profiles')
+          .update({ is_online: true, last_seen: new Date().toISOString() })
+          .eq('id', userId)
+      }
+      updateOnline()
+      interval = setInterval(updateOnline, 30000)
+
+      window.addEventListener('beforeunload', () => {
+        supabase.from('profiles').update({ is_online: false }).eq('id', userId)
+      })
+    }
+
+    return () => {
+      supabase.removeChannel(channel)
+      if (interval) clearInterval(interval)
+      if (userId === supabase.auth.user()?.id) {
+        supabase.from('profiles').update({ is_online: false }).eq('id', userId)
+      }
+    }
+  }, [userId])
+
+  return { isOnline, lastSeen }
+}
+
 export function useMessages(conversationId) {
   const { user } = useAuth()
   const [msgs, setMsgs] = useState([])
