@@ -4,31 +4,37 @@ import { formatDistanceToNow } from 'date-fns'
 import { useAuth } from '../contexts/AuthContext'
 import Avatar from './Avatar'
 import NewChatModal from './NewChatModal'
+import ConfirmDialog from './ConfirmDialog'
 import { deleteConversation } from '../hooks/useChat'
 
 export default function Sidebar({ convs, loading, activeId, onSelect, onShowProfile }) {
   const { profile, signOut } = useAuth()
-  if (!profile) return <div className="loading-screen"><div className="spinner" /></div>
-
   const [q, setQ] = useState('')
   const [tab, setTab] = useState('all')
   const [modal, setModal] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+
+  if (!profile) return <div className="loading-screen"><div className="spinner" /></div>
 
   const filtered = convs.filter(c => {
     const name = convName(c)
     return name.toLowerCase().includes(q.toLowerCase())
   }).filter(c => tab === 'all' ? true : tab === 'groups' ? c.type === 'group' : c.type === 'direct')
 
-  const handleDelete = async (convId, e) => {
+  const handleDeleteClick = (convId, e) => {
     e.stopPropagation()
-    if (confirm('Delete this conversation permanently? All messages will be lost for everyone.')) {
-      const ok = await deleteConversation(convId)
-      if (ok) {
-        window.location.reload() // refresh sidebar
-      } else {
-        alert('Failed to delete conversation')
-      }
+    setDeleteTarget(convId)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    const ok = await deleteConversation(deleteTarget)
+    if (ok) {
+      window.location.reload()
+    } else {
+      alert('Failed to delete conversation')
     }
+    setDeleteTarget(null)
   }
 
   return (
@@ -68,7 +74,7 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
                 active={c.id === activeId}
                 onClick={() => onSelect(c.id)}
                 onShowProfile={onShowProfile}
-                onDelete={handleDelete}
+                onDelete={handleDeleteClick}
               />
             ))
           )}
@@ -86,10 +92,20 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
         </div>
       </aside>
       {modal && <NewChatModal mode={modal} onClose={() => setModal(null)} onCreated={(id) => { setModal(null); onSelect(id) }} />}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Delete Conversation"
+        message="Delete this conversation permanently? All messages will be lost for everyone."
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </>
   )
 }
 
+// ConvRow, GrpAv, SkelItem, convName remain the same as before
 function ConvRow({ c, active, onClick, onShowProfile, onDelete }) {
   const name = convName(c)
   const member = c.members?.[0]
