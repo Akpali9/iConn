@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { MessageCircle, Users, UserPlus, Search, LogOut } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { useAuth } from '../contexts/AuthContext'
 import Avatar from './Avatar'
 import NewChatModal from './NewChatModal'
 
-export default function Sidebar({ convs, loading, activeId, onSelect }) {
+export default function Sidebar({ convs, loading, activeId, onSelect, onShowProfile }) {
   const { profile, signOut } = useAuth()
-  const [q, setQ]           = useState('')
-  const [tab, setTab]       = useState('all')
-  const [modal, setModal]   = useState(null) // 'direct' | 'group' | null
+  const [q, setQ] = useState('')
+  const [tab, setTab] = useState('all')
+  const [modal, setModal] = useState(null) // 'direct' | 'group' | null
 
   const filtered = convs.filter(c => {
     const name = convName(c)
@@ -19,22 +19,15 @@ export default function Sidebar({ convs, loading, activeId, onSelect }) {
   return (
     <>
       <aside className="sidebar">
-        {/* Header */}
         <div className="sidebar-head">
           <div className="sidebar-top-row">
             <div className="iconn-logo">
-              <div className="iconn-logo-mark">
-                <MessageCircle size={18} color="#fff" />
-              </div>
+              <div className="iconn-logo-mark"><MessageCircle size={18} color="#fff" /></div>
               <span className="iconn-logo-name">i<span>Conn</span></span>
             </div>
             <div className="sidebar-actions">
-              <button className="icon-btn" title="New chat" onClick={() => setModal('direct')}>
-                <UserPlus size={16} />
-              </button>
-              <button className="icon-btn" title="New group" onClick={() => setModal('group')}>
-                <Users size={16} />
-              </button>
+              <button className="icon-btn" title="New chat" onClick={() => setModal('direct')}><UserPlus size={16} /></button>
+              <button className="icon-btn" title="New group" onClick={() => setModal('group')}><Users size={16} /></button>
             </div>
           </div>
           <div className="search-wrap">
@@ -43,21 +36,17 @@ export default function Sidebar({ convs, loading, activeId, onSelect }) {
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="sidebar-tabs">
           {[['all','All'],['direct','Chats'],['groups','Groups']].map(([k,l]) => (
             <button key={k} className={`stab ${tab===k?'on':''}`} onClick={() => setTab(k)}>{l}</button>
           ))}
         </div>
 
-        {/* List */}
         <div className="conv-list">
           {loading ? (
             Array(6).fill(0).map((_,i) => <SkelItem key={i} />)
           ) : filtered.length === 0 ? (
-            <div className="empty-list">
-              {q ? 'No conversations match your search.' : 'No conversations yet.\nStart a new chat!'}
-            </div>
+            <div className="empty-list">{q ? 'No conversations match.' : 'No conversations yet.\nStart a new chat!'}</div>
           ) : (
             filtered.map(c => (
               <ConvRow key={c.id} c={c} active={c.id === activeId} onClick={() => onSelect(c.id)} />
@@ -65,7 +54,6 @@ export default function Sidebar({ convs, loading, activeId, onSelect }) {
           )}
         </div>
 
-        {/* Footer */}
         <div className="sidebar-foot" onClick={() => onSelect('__profile__')}>
           <div className="av" style={{ position: 'relative' }}>
             <Avatar name={profile?.display_name} src={profile?.avatar_url} size={40} />
@@ -80,7 +68,6 @@ export default function Sidebar({ convs, loading, activeId, onSelect }) {
           </button>
         </div>
       </aside>
-
       {modal && (
         <NewChatModal
           mode={modal}
@@ -93,11 +80,10 @@ export default function Sidebar({ convs, loading, activeId, onSelect }) {
 }
 
 function ConvRow({ c, active, onClick }) {
-  const name   = convName(c)
+  const name = convName(c)
   const member = c.members?.[0]
   const online = c.type === 'direct' && member?.is_online
-  const ago    = c.updated_at ? formatDistanceToNow(new Date(c.updated_at), { addSuffix: false }) : ''
-
+  const ago = c.updated_at ? formatDistanceToNow(new Date(c.updated_at), { addSuffix: false }) : ''
   return (
     <div className={`conv-item ${active ? 'active' : ''}`} onClick={onClick}>
       <div className="av" style={{ position: 'relative' }}>
@@ -105,15 +91,8 @@ function ConvRow({ c, active, onClick }) {
         {online && <div className="av-dot" />}
       </div>
       <div className="conv-body">
-        <div className="conv-row1">
-          <span className="conv-name">{name}</span>
-          <span className="conv-time">{ago}</span>
-        </div>
-        <div className="conv-row2">
-          <span className="conv-preview">
-            {c.type === 'group' ? `${(c.members?.length||0)+1} members` : online ? 'Online now' : 'Tap to chat'}
-          </span>
-        </div>
+        <div className="conv-row1"><span className="conv-name">{name}</span><span className="conv-time">{ago}</span></div>
+        <div className="conv-row2"><span className="conv-preview">{c.type === 'group' ? `${(c.members?.length||0)+1} members` : online ? 'Online now' : 'Tap to chat'}</span></div>
       </div>
     </div>
   )
@@ -124,14 +103,11 @@ function GrpAv({ members = [] }) {
   const colors = ['#e8501a','#1a6fe8','#1da462','#9333ea']
   return (
     <div className="grp-av">
-      {Array(4).fill(0).map((_,i) => {
-        const m = show[i]
-        return (
-          <div key={i} className="grp-av-cell" style={{ background: m ? colors[i] : 'var(--canvas-3)' }}>
-            {m ? (m.display_name?.[0]||'?').toUpperCase() : ''}
-          </div>
-        )
-      })}
+      {Array(4).fill(0).map((_,i) => (
+        <div key={i} className="grp-av-cell" style={{ background: show[i] ? colors[i] : 'var(--canvas-3)' }}>
+          {show[i] ? (show[i].display_name?.[0]||'?').toUpperCase() : ''}
+        </div>
+      ))}
     </div>
   )
 }
