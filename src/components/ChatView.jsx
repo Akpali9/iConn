@@ -7,17 +7,17 @@ import Avatar from './Avatar'
 import MessageBubble from './MessageBubble'
 
 export default function ChatView({ conv, onShowInfo }) {
-  const { user }       = useAuth()
+  const { user } = useAuth()
   const { msgs, loading, typing, sendMessage, deleteMessage, editMessage, reactToMessage, startTyping, bottomRef } = useMessages(conv?.id)
-  const [text, setText]     = useState('')
+  const [text, setText] = useState('')
   const [replyTo, setReplyTo] = useState(null)
   const [sending, setSending] = useState(false)
-  const taRef               = useRef(null)
+  const taRef = useRef(null)
 
   const isGroup = conv?.type === 'group'
   const partner = !isGroup ? conv?.members?.[0] : null
-  const name    = isGroup ? (conv?.name || 'Group') : (partner?.display_name || partner?.username || 'Chat')
-  const online  = partner?.is_online
+  const name = isGroup ? (conv?.name || 'Group') : (partner?.display_name || partner?.username || 'Chat')
+  const online = partner?.is_online
 
   useEffect(() => { taRef.current?.focus() }, [conv?.id])
 
@@ -25,15 +25,12 @@ export default function ChatView({ conv, onShowInfo }) {
     if (!text.trim() || sending) return
     setSending(true)
     const ok = await sendMessage(text, replyTo?.id || null)
-    if (ok) { setText(''); setReplyTo(null); if (taRef.current) { taRef.current.style.height = 'auto' } }
+    if (ok) { setText(''); setReplyTo(null); if (taRef.current) taRef.current.style.height = 'auto' }
     setSending(false)
     taRef.current?.focus()
   }
 
-  const onKey = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
-  }
-
+  const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }
   const onInput = (e) => {
     setText(e.target.value)
     startTyping()
@@ -44,7 +41,6 @@ export default function ChatView({ conv, onShowInfo }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Header */}
       <div className="chat-head">
         <div className="av" style={{ position: 'relative', cursor: 'pointer' }} onClick={onShowInfo}>
           <Avatar name={name} src={partner?.avatar_url} size={42} />
@@ -57,14 +53,13 @@ export default function ChatView({ conv, onShowInfo }) {
           </div>
         </div>
         <div className="head-acts">
-          <button className="icon-btn" title="Voice call"><Phone size={16} /></button>
-          <button className="icon-btn" title="Video call"><Video size={16} /></button>
-          <button className="icon-btn" title="Search in chat"><Search size={16} /></button>
-          <button className="icon-btn" title="Info" onClick={onShowInfo}><Info size={16} /></button>
+          <button className="icon-btn"><Phone size={16} /></button>
+          <button className="icon-btn"><Video size={16} /></button>
+          <button className="icon-btn"><Search size={16} /></button>
+          <button className="icon-btn" onClick={onShowInfo}><Info size={16} /></button>
         </div>
       </div>
 
-      {/* Messages */}
       <div className="msgs-scroll">
         {loading ? (
           <div style={{ display:'flex', justifyContent:'center', padding:48 }}><div className="spinner" /></div>
@@ -92,13 +87,9 @@ export default function ChatView({ conv, onShowInfo }) {
             </div>
           ))
         )}
-
-        {/* Typing indicator */}
         {typing.length > 0 && (
           <div className="typing-wrap">
-            <div className="typing-bubble">
-              <div className="td" /><div className="td" /><div className="td" />
-            </div>
+            <div className="typing-bubble"><div className="td" /><div className="td" /><div className="td" /></div>
             <div style={{ fontSize:11, color:'var(--ink-40)', marginTop:3, paddingLeft:4 }}>
               {typing.map(t => t.profiles?.display_name).join(', ')} typing…
             </div>
@@ -107,7 +98,6 @@ export default function ChatView({ conv, onShowInfo }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
       <div className="chat-input-zone">
         {replyTo && (
           <div className="reply-bar">
@@ -119,9 +109,9 @@ export default function ChatView({ conv, onShowInfo }) {
           </div>
         )}
         <div className="input-row">
-          <button className="icon-btn" title="Attach"><Paperclip size={17} /></button>
+          <button className="icon-btn"><Paperclip size={17} /></button>
           <div className="input-box">
-            <button className="icon-btn" style={{ width:28, height:28, flexShrink:0 }} title="Emoji"><Smile size={17} /></button>
+            <button className="icon-btn" style={{ width:28, height:28, flexShrink:0 }}><Smile size={17} /></button>
             <textarea
               ref={taRef}
               className="msg-inp"
@@ -132,7 +122,7 @@ export default function ChatView({ conv, onShowInfo }) {
               rows={1}
             />
           </div>
-          <button className="send-btn" onClick={handleSend} disabled={!text.trim() || sending} title="Send">
+          <button className="send-btn" onClick={handleSend} disabled={!text.trim() || sending}>
             {text.trim() ? <Send size={17} /> : <Mic size={17} />}
           </button>
         </div>
