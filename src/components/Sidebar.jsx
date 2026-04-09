@@ -37,11 +37,8 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
   const confirmDelete = async () => {
     if (!deleteTarget) return
     const ok = await deleteConversation(deleteTarget)
-    if (ok) {
-      window.location.reload()
-    } else {
-      alert('Failed to delete conversation')
-    }
+    if (ok) window.location.reload()
+    else alert('Failed to delete conversation')
     setDeleteTarget(null)
   }
 
@@ -131,24 +128,10 @@ function ConvRow({ c, active, onClick, onShowProfile, onDelete }) {
         {online && <div className="av-dot" />}
       </div>
       <div className="conv-body">
-        <div className="conv-row1">
-          <span className="conv-name">{name}</span>
-          <span className="conv-time">{ago}</span>
-        </div>
-        <div className="conv-row2">
-          <span className="conv-preview">{c.type === 'group' ? `${(c.members?.length||0)+1} members` : online ? 'Online now' : 'Tap to chat'}</span>
-        </div>
+        <div className="conv-row1"><span className="conv-name">{name}</span><span className="conv-time">{ago}</span></div>
+        <div className="conv-row2"><span className="conv-preview">{c.type === 'group' ? `${(c.members?.length||0)+1} members` : online ? 'Online now' : 'Tap to chat'}</span></div>
       </div>
-      <button
-        className="icon-btn delete-conv"
-        onClick={(e) => onDelete(c.id, e)}
-        title="Delete conversation"
-        style={{ opacity: 0.6, transition: 'opacity 0.2s', marginLeft: 'auto', flexShrink: 0 }}
-        onMouseEnter={e => e.currentTarget.style.opacity = 1}
-        onMouseLeave={e => e.currentTarget.style.opacity = 0.6}
-      >
-        <Trash2 size={14} />
-      </button>
+      <button className="icon-btn delete-conv" onClick={(e) => onDelete(c.id, e)} title="Delete conversation" style={{ opacity: 0.6, transition: 'opacity 0.2s', marginLeft: 'auto', flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.opacity = 1} onMouseLeave={e => e.currentTarget.style.opacity = 0.6}><Trash2 size={14} /></button>
     </div>
   )
 }
