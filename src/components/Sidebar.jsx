@@ -9,7 +9,7 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
   const { profile, signOut } = useAuth()
   const [q, setQ] = useState('')
   const [tab, setTab] = useState('all')
-  const [modal, setModal] = useState(null) // 'direct' | 'group' | null
+  const [modal, setModal] = useState(null)
 
   const filtered = convs.filter(c => {
     const name = convName(c)
@@ -49,12 +49,12 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
             <div className="empty-list">{q ? 'No conversations match.' : 'No conversations yet.\nStart a new chat!'}</div>
           ) : (
             filtered.map(c => (
-              <ConvRow key={c.id} c={c} active={c.id === activeId} onClick={() => onSelect(c.id)} />
+              <ConvRow key={c.id} c={c} active={c.id === activeId} onClick={() => onSelect(c.id)} onShowProfile={onShowProfile} />
             ))
           )}
         </div>
 
-        <div className="sidebar-foot" onClick={() => onSelect('__profile__')}>
+        <div className="sidebar-foot" onClick={() => profile && onShowProfile(profile)}>
           <div className="av" style={{ position: 'relative' }}>
             <Avatar name={profile?.display_name} src={profile?.avatar_url} size={40} />
             <div className="av-dot" />
@@ -79,14 +79,20 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
   )
 }
 
-function ConvRow({ c, active, onClick }) {
+function ConvRow({ c, active, onClick, onShowProfile }) {
   const name = convName(c)
   const member = c.members?.[0]
   const online = c.type === 'direct' && member?.is_online
   const ago = c.updated_at ? formatDistanceToNow(new Date(c.updated_at), { addSuffix: false }) : ''
+  
+  const handleAvatarClick = (e) => {
+    e.stopPropagation()
+    if (c.type === 'direct' && member) onShowProfile(member)
+  }
+
   return (
     <div className={`conv-item ${active ? 'active' : ''}`} onClick={onClick}>
-      <div className="av" style={{ position: 'relative' }}>
+      <div className="av" style={{ position: 'relative', cursor: c.type === 'direct' ? 'pointer' : 'default' }} onClick={handleAvatarClick}>
         {c.type === 'group' ? <GrpAv members={c.members} /> : <Avatar name={name} src={member?.avatar_url} size={48} />}
         {online && <div className="av-dot" />}
       </div>
