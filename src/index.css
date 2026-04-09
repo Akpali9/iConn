@@ -19,6 +19,7 @@
   --r-sm: 8px;
 }
 /* Mobile Responsive */
+/* Mobile Responsive */
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;
@@ -75,6 +76,21 @@
   }
 }
 
+@media (min-width: 769px) {
+  .mobile-back-btn {
+    display: none;
+  }
+  
+  .sidebar {
+    transform: translateX(0) !important;
+    position: relative;
+    width: 320px;
+  }
+  
+  .sidebar.open {
+    transform: translateX(0);
+  }
+}
 @media (min-width: 769px) {
   .mobile-back-btn {
     display: none;
