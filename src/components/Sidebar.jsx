@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { MessageCircle, Users, UserPlus, Search, LogOut, Trash2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { MessageCircle, Users, UserPlus, Search, LogOut, Trash2, X } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { useAuth } from '../contexts/AuthContext'
 import Avatar from './Avatar'
@@ -7,12 +7,20 @@ import NewChatModal from './NewChatModal'
 import ConfirmDialog from './ConfirmDialog'
 import { deleteConversation } from '../hooks/useChat'
 
-export default function Sidebar({ convs, loading, activeId, onSelect, onShowProfile }) {
+export default function Sidebar({ convs, loading, activeId, onSelect, onShowProfile, onCloseSidebar }) {
   const { profile, signOut } = useAuth()
   const [q, setQ] = useState('')
   const [tab, setTab] = useState('all')
   const [modal, setModal] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    setIsMobile(window.innerWidth <= 768)
+    const handleResize = () => setIsMobile(window.innerWidth <= 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   if (!profile) return <div className="loading-screen"><div className="spinner" /></div>
 
@@ -40,18 +48,13 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
   return (
     <>
       <aside className="sidebar">
+        {isMobile && (
+          <button className="icon-btn mobile-close-btn" onClick={onCloseSidebar} style={{ position: 'absolute', top: 16, right: 16, zIndex: 10, background: 'var(--surface-2)' }}>
+            <X size={18} />
+          </button>
+        )}
         <div className="sidebar-head">
           <div className="sidebar-top-row">
-         
-                {window.innerWidth <= 768 && (
-                  <button 
-                    className="icon-btn mobile-close-btn" 
-                    onClick={() => onCloseSidebar?.()}
-                    style={{ position: 'absolute', top: 16, right: 16 }}
-                  >
-                    ✕
-                  </button>
-                )}
             <div className="iconn-logo">
               <div className="iconn-logo-mark"><MessageCircle size={18} color="#fff" /></div>
               <span className="iconn-logo-name">i<span>Conn</span></span>
@@ -115,7 +118,6 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
   )
 }
 
-// ConvRow, GrpAv, SkelItem, convName remain the same as before
 function ConvRow({ c, active, onClick, onShowProfile, onDelete }) {
   const name = convName(c)
   const member = c.members?.[0]
