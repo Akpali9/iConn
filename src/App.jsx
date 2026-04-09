@@ -6,36 +6,8 @@ import ChatView from './components/ChatView'
 import ProfileModal from './components/ProfileModal'
 import Login from './components/Login'
 
-const [profileState, setProfileState] = useState(profile)
-
-useEffect(() => {
-  setProfileState(profile)
-}, [profile])
-
-// Then pass onProfileUpdate to ProfileModal
-{showProfileModal && (
-  <ProfileModal
-    user={profileUser}
-    onClose={() => setShowProfileModal(false)}
-    currentUserId={user.id}
-    onProfileUpdate={(updated) => {
-      setProfileState(prev => ({ ...prev, ...updated }))
-    }}
-  />
-)}
-
-// Also update Sidebar prop to use profileState
-<Sidebar
-  convs={convs}
-  loading={convsLoading}
-  activeId={activeConvId}
-  onSelect={setActiveConvId}
-  onShowProfile={(u) => { setProfileUser(u); setShowProfileModal(true) }}
-  profile={profileState}  // pass updated profile
-/>
-
 function App() {
-  const { user, profile, loading: authLoading } = useAuth()
+  const { user, profile, loading: authLoading, refreshProfile } = useAuth()
   const { convs, loading: convsLoading } = useConversations()
   const [activeConvId, setActiveConvId] = useState(null)
   const [activeConv, setActiveConv] = useState(null)
@@ -45,7 +17,7 @@ function App() {
   useEffect(() => {
     if (activeConvId === '__profile__') {
       setShowProfileModal(true)
-      setProfileUser(profile)
+      setProfileUser(profile) // profile may be null initially, but modal handles null
       setActiveConvId(null)
     } else if (activeConvId) {
       const found = convs.find(c => c.id === activeConvId)
@@ -76,7 +48,6 @@ function App() {
                 setProfileUser(activeConv.members[0])
                 setShowProfileModal(true)
               } else if (activeConv.type === 'group') {
-                // Group info modal can be added later
                 alert('Group info coming soon')
               }
             }}
@@ -94,6 +65,7 @@ function App() {
           user={profileUser}
           onClose={() => setShowProfileModal(false)}
           currentUserId={user.id}
+          onProfileUpdate={refreshProfile}
         />
       )}
     </div>
