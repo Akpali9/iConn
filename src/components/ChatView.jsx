@@ -7,6 +7,7 @@ import { useMessages } from '../hooks/useChat'
 import Avatar from './Avatar'
 import MessageBubble from './MessageBubble'
 import CallModal from './CallModal'
+import GroupInfoModal from './GroupInfoModal'
 
 export default function ChatView({ conv, onShowInfo }) {
   const { user } = useAuth()
@@ -17,6 +18,7 @@ export default function ChatView({ conv, onShowInfo }) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [showCallModal, setShowCallModal] = useState(false)
   const [isVideoCall, setIsVideoCall] = useState(false)
+  const [showGroupInfo, setShowGroupInfo] = useState(false)
   const taRef = useRef(null)
   const emojiButtonRef = useRef(null)
   const emojiPickerRef = useRef(null)
@@ -31,7 +33,7 @@ export default function ChatView({ conv, onShowInfo }) {
   // Close emoji picker when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target) && 
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target) &&
           emojiButtonRef.current && !emojiButtonRef.current.contains(e.target)) {
         setShowEmojiPicker(false)
       }
@@ -44,9 +46,9 @@ export default function ChatView({ conv, onShowInfo }) {
     if (!text.trim() || sending) return
     setSending(true)
     const ok = await sendMessage(text, replyTo?.id || null)
-    if (ok) { 
-      setText(''); 
-      setReplyTo(null); 
+    if (ok) {
+      setText('')
+      setReplyTo(null)
       if (taRef.current) {
         taRef.current.style.height = 'auto'
         taRef.current.focus()
@@ -55,13 +57,13 @@ export default function ChatView({ conv, onShowInfo }) {
     setSending(false)
   }
 
-  const onKey = (e) => { 
-    if (e.key === 'Enter' && !e.shiftKey) { 
-      e.preventDefault(); 
-      handleSend() 
-    } 
+  const onKey = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
+    }
   }
-  
+
   const onInput = (e) => {
     setText(e.target.value)
     startTyping()
@@ -70,7 +72,6 @@ export default function ChatView({ conv, onShowInfo }) {
     ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'
   }
 
-  // ✅ Fixed: Insert emoji at cursor position
   const onEmojiClick = (emojiObject) => {
     const emoji = emojiObject.emoji
     const textarea = taRef.current
@@ -79,9 +80,7 @@ export default function ChatView({ conv, onShowInfo }) {
     const start = textarea.selectionStart
     const end = textarea.selectionEnd
     const newText = text.substring(0, start) + emoji + text.substring(end)
-    
     setText(newText)
-    // Move cursor after inserted emoji
     setTimeout(() => {
       textarea.selectionStart = textarea.selectionEnd = start + emoji.length
       textarea.focus()
@@ -91,6 +90,7 @@ export default function ChatView({ conv, onShowInfo }) {
   }
 
   const grouped = groupByDate(msgs)
+
   if (!conv) return <div className="loading-screen"><div className="spinner" /></div>
 
   return (
@@ -104,25 +104,34 @@ export default function ChatView({ conv, onShowInfo }) {
         <div className="chat-head-info" style={{ cursor: 'pointer' }} onClick={onShowInfo}>
           <div className="chat-head-name">{name}</div>
           <div className={`chat-head-sub ${!online && !isGroup ? 'off' : ''}`}>
-            {isGroup ? `${(conv?.members?.length||0)+1} members` : online ? 'Online' : 'Offline'}
+            {isGroup ? `${(conv?.members?.length || 0) + 1} members` : online ? 'Online' : 'Offline'}
           </div>
         </div>
         <div className="head-acts">
-          <button className="icon-btn" onClick={() => { setIsVideoCall(false); setShowCallModal(true) }} title="Voice call"><Phone size={16} /></button>
-          <button className="icon-btn" onClick={() => { setIsVideoCall(true); setShowCallModal(true) }} title="Video call"><Video size={16} /></button>
+          <button className="icon-btn" onClick={() => { setIsVideoCall(false); setShowCallModal(true) }} title="Voice call">
+            <Phone size={16} />
+          </button>
+          <button className="icon-btn" onClick={() => { setIsVideoCall(true); setShowCallModal(true) }} title="Video call">
+            <Video size={16} />
+          </button>
           <button className="icon-btn"><Search size={16} /></button>
-          <button className="icon-btn" onClick={onShowInfo}><Info size={16} /></button>
+          <button className="icon-btn" onClick={() => {
+            if (isGroup) setShowGroupInfo(true)
+            else onShowInfo()
+          }} title="Info">
+            <Info size={16} />
+          </button>
         </div>
       </div>
 
       {/* Messages */}
       <div className="msgs-scroll">
         {loading ? (
-          <div style={{ display:'flex', justifyContent:'center', padding:48 }}><div className="spinner" /></div>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><div className="spinner" /></div>
         ) : msgs.length === 0 ? (
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flex:1, gap:12, color:'var(--ink-40)', paddingTop:60 }}>
-            <div style={{ fontSize:48 }}>💬</div>
-            <p style={{ fontSize:14, textAlign:'center' }}>No messages yet. Say hi to {name}!</p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 12, color: 'var(--ink-40)', paddingTop: 60 }}>
+            <div style={{ fontSize: 48 }}>💬</div>
+            <p style={{ fontSize: 14, textAlign: 'center' }}>No messages yet. Say hi to {name}!</p>
           </div>
         ) : (
           grouped.map(({ date, items }) => (
@@ -146,7 +155,7 @@ export default function ChatView({ conv, onShowInfo }) {
         {typing.length > 0 && (
           <div className="typing-wrap">
             <div className="typing-bubble"><div className="td" /><div className="td" /><div className="td" /></div>
-            <div style={{ fontSize:11, color:'var(--ink-40)', marginTop:3, paddingLeft:4 }}>
+            <div style={{ fontSize: 11, color: 'var(--ink-40)', marginTop: 3, paddingLeft: 4 }}>
               {typing.map(t => t.profiles?.display_name).join(', ')} typing…
             </div>
           </div>
@@ -154,7 +163,7 @@ export default function ChatView({ conv, onShowInfo }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input Area with Emoji Picker */}
+      {/* Input area with emoji picker */}
       <div className="chat-input-zone">
         {replyTo && (
           <div className="reply-bar">
@@ -171,20 +180,20 @@ export default function ChatView({ conv, onShowInfo }) {
             <button
               ref={emojiButtonRef}
               className="icon-btn"
-              style={{ width:28, height:28, flexShrink:0 }}
+              style={{ width: 28, height: 28, flexShrink: 0 }}
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
               type="button"
             >
               <Smile size={17} />
             </button>
             {showEmojiPicker && (
-              <div 
+              <div
                 ref={emojiPickerRef}
-                style={{ 
-                  position: 'absolute', 
-                  bottom: '100%', 
-                  left: 0, 
-                  marginBottom: '8px', 
+                style={{
+                  position: 'absolute',
+                  bottom: '100%',
+                  left: 0,
+                  marginBottom: '8px',
                   zIndex: 1000,
                   width: '320px'
                 }}
@@ -207,11 +216,32 @@ export default function ChatView({ conv, onShowInfo }) {
           </button>
         </div>
       </div>
-      {showCallModal && <CallModal conversationId={conv?.id} currentUserId={user.id} targetUserId={partner?.id} onClose={() => setShowCallModal(false)} isVideo={isVideoCall} />}
+
+      {/* Modals */}
+      {showCallModal && (
+        <CallModal
+          conversationId={conv?.id}
+          currentUserId={user.id}
+          targetUserId={partner?.id}
+          onClose={() => setShowCallModal(false)}
+          isVideo={isVideoCall}
+        />
+      )}
+      {showGroupInfo && (
+        <GroupInfoModal
+          conversation={conv}
+          onClose={() => setShowGroupInfo(false)}
+          currentUserId={user.id}
+          onUpdate={() => {
+            // Optional: refresh conversation data
+          }}
+        />
+      )}
     </div>
   )
 }
 
+// Helper functions
 function groupByDate(msgs) {
   const map = {}
   for (const m of msgs) {
