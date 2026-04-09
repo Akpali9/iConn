@@ -8,7 +8,7 @@ import NewChatModal from './NewChatModal'
 export default function Sidebar({ convs, loading, activeId, onSelect, onShowProfile }) {
   const { profile, signOut } = useAuth()
 
-  // ⚠️ Critical: Wait for profile to load
+  // 🔒 Critical: prevent rendering before profile is loaded
   if (!profile) {
     return (
       <div className="loading-screen">
@@ -63,12 +63,12 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
         </div>
         <div className="sidebar-foot" onClick={() => onShowProfile(profile)}>
           <div className="av" style={{ position: 'relative' }}>
-            <Avatar name={profile.display_name} src={profile.avatar_url} size={40} />
+            <Avatar name={profile.display_name || ''} src={profile.avatar_url} size={40} />
             <div className="av-dot" />
           </div>
           <div className="sf-info">
             <div className="sf-name">{profile.display_name || 'You'}</div>
-            <div className="sf-handle">@{profile.username}</div>
+            <div className="sf-handle">@{profile.username || ''}</div>
           </div>
           <button className="icon-btn" onClick={e => { e.stopPropagation(); signOut() }} title="Sign out">
             <LogOut size={15} />
@@ -85,6 +85,8 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
     </>
   )
 }
+
+// ========== Helper Components ==========
 
 function ConvRow({ c, active, onClick, onShowProfile }) {
   const name = convName(c)
