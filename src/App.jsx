@@ -1,73 +1,74 @@
-import { useState } from 'react'
-import { MessageCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useAuth } from './contexts/AuthContext'
-import { useConversations, usePresence } from './hooks/useChat'
-import AuthPage from './pages/AuthPage'
+import { useConversations } from './hooks/useChat'  // ← removed usePresence
 import Sidebar from './components/Sidebar'
 import ChatView from './components/ChatView'
-import InfoPanel from './components/InfoPanel'
+import ProfileModal from './components/ProfileModal'
+import Login from './components/Login'
 
-function Shell() {
-  const { user, loading }               = useAuth()
+function App() {
+  const { user, profile, loading: authLoading } = useAuth()
   const { convs, loading: convsLoading } = useConversations()
-  const [activeId, setActiveId]          = useState(null)
-  const [showInfo, setShowInfo]          = useState(false)
-  usePresence()
+  const [activeConvId, setActiveConvId] = useState(null)
+  const [activeConv, setActiveConv] = useState(null)
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [profileUser, setProfileUser] = useState(null)
 
-  if (loading) return (
-    <div className="loader-screen">
-      <div style={{ width:52, height:52, background:'var(--accent)', borderRadius:16, display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 20px var(--accent-glow)' }}>
-        <MessageCircle size={26} color="#fff" />
-      </div>
-      <div className="spinner" />
-    </div>
-  )
+  useEffect(() => {
+    if (activeConvId === '__profile__') {
+      setShowProfileModal(true)
+      setProfileUser(profile)
+      setActiveConvId(null)
+    } else if (activeConvId) {
+      const found = convs.find(c => c.id === activeConvId)
+      setActiveConv(found)
+    } else {
+      setActiveConv(null)
+    }
+  }, [activeConvId, convs, profile])
 
-  if (!user) return <AuthPage />
-
-  const activeConv = convs.find(c => c.id === activeId)
-  const isSelfProfile = activeId === '__profile__'
+  if (authLoading) return <div className="loading-screen"><div className="spinner" /></div>
+  if (!user) return <Login />
 
   return (
-    <div className="app-shell">
+    <div className="app">
       <Sidebar
         convs={convs}
         loading={convsLoading}
-        activeId={activeId}
-        onSelect={(id) => { setActiveId(id); setShowInfo(false) }}
+        activeId={activeConvId}
+        onSelect={setActiveConvId}
+        onShowProfile={(u) => { setProfileUser(u); setShowProfileModal(true) }}
       />
-
-      {/* Chat or welcome */}
-      <div className="chat-main">
+      <div className="chat-area">
         {activeConv ? (
-          <ChatView conv={activeConv} onShowInfo={() => setShowInfo(v => !v)} />
-        ) : isSelfProfile ? (
-          // self-profile shown via panel; main area shows welcome
-          <div className="welcome-pane">
-            <div className="welcome-icon"><MessageCircle size={34} /></div>
-            <div className="welcome-title">Your Profile</div>
-            <div className="welcome-sub">Edit your name, status and bio in the panel on the right.</div>
-          </div>
+          <ChatView
+            conv={activeConv}
+            onShowInfo={() => {
+              if (activeConv.type === 'direct' && activeConv.members[0]) {
+                setProfileUser(activeConv.members[0])
+                setShowProfileModal(true)
+              } else if (activeConv.type === 'group') {
+                alert('Group info coming soon')
+              }
+            }}
+          />
         ) : (
-          <div className="welcome-pane">
-            <div className="welcome-icon"><MessageCircle size={34} /></div>
-            <div className="welcome-title">Welcome to iConn</div>
-            <div className="welcome-sub">Select a conversation from the sidebar or start a new chat to get connected.</div>
+          <div className="welcome-placeholder">
+            <div className="welcome-icon">💬</div>
+            <h2>Welcome to iConn</h2>
+            <p>Select a conversation or start a new chat</p>
           </div>
         )}
       </div>
-
-      {/* Info / profile panel */}
-      {showInfo && activeConv && (
-        <InfoPanel conv={activeConv} isSelf={false} onClose={() => setShowInfo(false)} />
-      )}
-      {isSelfProfile && (
-        <InfoPanel conv={null} isSelf onClose={() => setActiveId(null)} />
+      {showProfileModal && (
+        <ProfileModal
+          user={profileUser}
+          onClose={() => setShowProfileModal(false)}
+          currentUserId={user.id}
+        />
       )}
     </div>
   )
 }
 
-export default function App() {
-  return <Shell />
-}
+export default App
