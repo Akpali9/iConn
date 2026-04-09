@@ -19,16 +19,16 @@ function App() {
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth <= 768)
+    const checkMobile = () => {
+      const mobile = window.innerWidth <= 768
+      setIsMobile(mobile)
+      if (!mobile) setSidebarOpen(true)
+      else setSidebarOpen(false)
+    }
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
-
-  useEffect(() => {
-    if (!isMobile) setSidebarOpen(true)
-    else setSidebarOpen(false)
-  }, [isMobile])
 
   useEffect(() => {
     if (activeConvId === '__profile__') {
@@ -54,16 +54,21 @@ function App() {
     if (isMobile) setSidebarOpen(true)
   }
 
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen)
+  }
+
   if (authLoading) return <div className="loading-screen"><div className="spinner" /></div>
   if (!user) return <Login />
 
   return (
     <div className="app">
-      {/* Backdrop overlay for mobile */}
       {isMobile && (
-        <div className={`sidebar-backdrop ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />
+        <div
+          className={`sidebar-backdrop ${sidebarOpen ? 'open' : ''}`}
+          onClick={() => setSidebarOpen(false)}
+        />
       )}
-      
       <div className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <Sidebar
           convs={convs}
@@ -74,7 +79,6 @@ function App() {
           onCloseSidebar={() => setSidebarOpen(false)}
         />
       </div>
-      
       <div className="chat-area">
         {activeConv ? (
           <ChatView
@@ -95,14 +99,13 @@ function App() {
             <h2>Welcome to iConn</h2>
             <p>Select a conversation or start a new chat</p>
             {isMobile && convs.length > 0 && (
-              <button className="btn-primary" onClick={() => setSidebarOpen(true)} style={{ marginTop: 20 }}>
+              <button className="btn-primary" onClick={toggleSidebar} style={{ marginTop: 20 }}>
                 Open Conversations
               </button>
             )}
           </div>
         )}
       </div>
-
       {showProfileModal && (
         <ProfileModal
           user={profileUser}
@@ -111,7 +114,6 @@ function App() {
           onProfileUpdate={refreshProfile}
         />
       )}
-
       {showGroupInfo && activeConv && (
         <GroupInfoModal
           conversation={activeConv}
