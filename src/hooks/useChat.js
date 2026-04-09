@@ -12,13 +12,16 @@ export function useMessages(conversationId) {
   useEffect(() => {
     if (!conversationId) return
     setLoading(true)
+
     const fetchMsgs = async () => {
       const { data, error } = await supabase
         .from('messages')
         .select(`
           *,
           profiles:sender_id (id, username, display_name, avatar_url),
-          reply:messages!reply_to (id, content, profiles:sender_id (display_name, username)),
+          reply:messages!reply_to (
+            id, content, profiles:sender_id (display_name, username)
+          ),
           reactions (*, user_id)
         `)
         .eq('conversation_id', conversationId)
@@ -37,15 +40,21 @@ export function useMessages(conversationId) {
         }
       )
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
-        (payload) => { setMsgs(prev => prev.map(m => m.id === payload.new.id ? payload.new : m)) }
+        (payload) => {
+          setMsgs(prev => prev.map(m => m.id === payload.new.id ? payload.new : m))
+        }
       )
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
-        (payload) => { setMsgs(prev => prev.filter(m => m.id !== payload.old.id)) }
+        (payload) => {
+          setMsgs(prev => prev.filter(m => m.id !== payload.old.id))
+        }
       )
       .subscribe()
+
     return () => supabase.removeChannel(channel)
   }, [conversationId])
 
+  // Typing indicators
   useEffect(() => {
     if (!conversationId) return
     const typingChannel = supabase
@@ -91,10 +100,11 @@ export function useMessages(conversationId) {
     if (error) console.error('editMessage error:', error)
   }
 
+  // ✅ CORRECTED: set content to '[deleted]' instead of null
   const deleteMessage = async (msgId) => {
     const { error } = await supabase
       .from('messages')
-      .update({ is_deleted: true, content: null })
+      .update({ is_deleted: true, content: '[deleted]' })
       .eq('id', msgId)
     if (error) console.error('deleteMessage error:', error)
   }
@@ -119,6 +129,9 @@ export function useMessages(conversationId) {
   return { msgs, loading, typing, sendMessage, deleteMessage, editMessage, reactToMessage, startTyping, bottomRef }
 }
 
+// --------------------------------------------
+//  useConversations – fetch & real‑time
+// --------------------------------------------
 export function useConversations() {
   const { user } = useAuth()
   const [convs, setConvs] = useState([])
@@ -131,7 +144,9 @@ export function useConversations() {
       .select('conversation_id, role')
       .eq('user_id', user.id)
     if (memErr || !memberships?.length) {
-      setConvs([]); setLoading(false); return
+      setConvs([])
+      setLoading(false)
+      return
     }
     const convIds = memberships.map(m => m.conversation_id)
     const { data: conversations, error: convErr } = await supabase
@@ -140,13 +155,22 @@ export function useConversations() {
       .in('id', convIds)
       .order('updated_at', { ascending: false, nullsFirst: false })
     if (convErr) {
-      console.error(convErr); setConvs([]); setLoading(false); return
+      console.error(convErr)
+      setConvs([])
+      setLoading(false)
+      return
     }
     const convsWithMembers = await Promise.all(
       conversations.map(async (conv) => {
         const { data: members } = await supabase
           .from('conversation_members')
-          .select(`user_id, role, profiles:user_id (id, username, display_name, avatar_url, is_online, last_seen, bio, created_at, email)`)
+          .select(`
+            user_id,
+            role,
+            profiles:user_id (
+              id, username, display_name, avatar_url, is_online, last_seen, bio, created_at, email
+            )
+          `)
           .eq('conversation_id', conv.id)
         const allMembers = members?.map(m => ({ ...m.profiles, role: m.role })) || []
         const otherMembers = allMembers.filter(m => m.id !== user.id)
@@ -169,6 +193,9 @@ export function useConversations() {
   return { convs, loading, refetch: fetchConversations }
 }
 
+// --------------------------------------------
+//  useUsers – search profiles
+// --------------------------------------------
 export function useUsers() {
   const search = async (query) => {
     let q = supabase.from('profiles').select('*')
@@ -180,34 +207,70 @@ export function useUsers() {
   return { search }
 }
 
+// --------------------------------------------
+//  startDirect – create or get existing DM
+// --------------------------------------------
 export async function startDirect(currentUserId, targetUserId) {
   try {
-    const { data: myConvs } = await supabase.from('conversation_members').select('conversation_id').eq('user_id', currentUserId)
+    const { data: myConvs } = await supabase
+      .from('conversation_members')
+      .select('conversation_id')
+      .eq('user_id', currentUserId)
     const convIds = myConvs.map(c => c.conversation_id)
     if (convIds.length) {
-      const { data: existing } = await supabase.from('conversation_members').select('conversation_id').eq('user_id', targetUserId).in('conversation_id', convIds).limit(1)
+      const { data: existing } = await supabase
+        .from('conversation_members')
+        .select('conversation_id')
+        .eq('user_id', targetUserId)
+        .in('conversation_id', convIds)
+        .limit(1)
       if (existing?.length) return existing[0].conversation_id
     }
-    const { data: conv, error: createErr } = await supabase.from('conversations').insert({ type: 'direct', created_by: currentUserId }).select().single()
+    const { data: conv, error: createErr } = await supabase
+      .from('conversations')
+      .insert({ type: 'direct', created_by: currentUserId })
+      .select()
+      .single()
     if (createErr) throw createErr
-    await supabase.from('conversation_members').insert({ conversation_id: conv.id, user_id: targetUserId, role: 'member' })
+    await supabase
+      .from('conversation_members')
+      .insert({ conversation_id: conv.id, user_id: targetUserId, role: 'member' })
     return conv.id
-  } catch (err) { console.error('startDirect error:', err); return null }
+  } catch (err) {
+    console.error('startDirect error:', err)
+    return null
+  }
 }
 
+// --------------------------------------------
+//  startGroup – create group
+// --------------------------------------------
 export async function startGroup(creatorId, memberIds, groupName) {
   try {
-    const { data: conv, error: createErr } = await supabase.from('conversations').insert({ type: 'group', name: groupName, created_by: creatorId }).select().single()
+    const { data: conv, error: createErr } = await supabase
+      .from('conversations')
+      .insert({ type: 'group', name: groupName, created_by: creatorId })
+      .select()
+      .single()
     if (createErr) throw createErr
     if (memberIds.length) {
-      await supabase.from('conversation_members').insert(memberIds.map(id => ({ conversation_id: conv.id, user_id: id, role: 'member' })))
+      await supabase
+        .from('conversation_members')
+        .insert(memberIds.map(id => ({ conversation_id: conv.id, user_id: id, role: 'member' })))
     }
     return conv.id
-  } catch (err) { console.error('startGroup error:', err); return null }
+  } catch (err) {
+    console.error('startGroup error:', err)
+    return null
+  }
 }
 
+// --------------------------------------------
+//  avatarColor helper
+// --------------------------------------------
 export function avatarColor(name) {
-  let hash = 0; for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash) + name.charCodeAt(i)
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash) + name.charCodeAt(i)
   const hue = Math.abs(hash % 360)
   return `hsl(${hue}, 65%, 55%)`
 }
