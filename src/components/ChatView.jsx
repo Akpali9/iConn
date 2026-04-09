@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Phone, Video, Search, Info, Smile, Paperclip, Send, Mic, X } from 'lucide-react'
 import { format, isToday, isYesterday } from 'date-fns'
+import EmojiPicker from 'emoji-picker-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useMessages } from '../hooks/useChat'
 import Avatar from './Avatar'
@@ -12,7 +13,9 @@ export default function ChatView({ conv, onShowInfo }) {
   const [text, setText] = useState('')
   const [replyTo, setReplyTo] = useState(null)
   const [sending, setSending] = useState(false)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const taRef = useRef(null)
+  const emojiButtonRef = useRef(null)
 
   const isGroup = conv?.type === 'group'
   const partner = !isGroup ? conv?.members?.[0] : null
@@ -20,6 +23,17 @@ export default function ChatView({ conv, onShowInfo }) {
   const online = partner?.is_online
 
   useEffect(() => { taRef.current?.focus() }, [conv?.id])
+
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (emojiButtonRef.current && !emojiButtonRef.current.contains(e.target)) {
+        setShowEmojiPicker(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const handleSend = async () => {
     if (!text.trim() || sending) return
@@ -37,12 +51,19 @@ export default function ChatView({ conv, onShowInfo }) {
     const ta = e.target; ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'
   }
 
+  const onEmojiClick = (emojiObject) => {
+    setText(prev => prev + emojiObject.emoji)
+    setShowEmojiPicker(false)
+    taRef.current?.focus()
+  }
+
   const grouped = groupByDate(msgs)
 
   if (!conv) return <div className="loading-screen"><div className="spinner" /></div>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Header */}
       <div className="chat-head">
         <div className="av" style={{ position: 'relative', cursor: 'pointer' }} onClick={onShowInfo}>
           <Avatar name={name} src={partner?.avatar_url} size={42} />
@@ -61,6 +82,8 @@ export default function ChatView({ conv, onShowInfo }) {
           <button className="icon-btn" onClick={onShowInfo}><Info size={16} /></button>
         </div>
       </div>
+
+      {/* Messages */}
       <div className="msgs-scroll">
         {loading ? (
           <div style={{ display:'flex', justifyContent:'center', padding:48 }}><div className="spinner" /></div>
@@ -98,6 +121,8 @@ export default function ChatView({ conv, onShowInfo }) {
         )}
         <div ref={bottomRef} />
       </div>
+
+      {/* Input Area with Emoji Picker */}
       <div className="chat-input-zone">
         {replyTo && (
           <div className="reply-bar">
@@ -110,8 +135,20 @@ export default function ChatView({ conv, onShowInfo }) {
         )}
         <div className="input-row">
           <button className="icon-btn"><Paperclip size={17} /></button>
-          <div className="input-box">
-            <button className="icon-btn" style={{ width:28, height:28, flexShrink:0 }}><Smile size={17} /></button>
+          <div className="input-box" style={{ position: 'relative' }}>
+            <button
+              ref={emojiButtonRef}
+              className="icon-btn"
+              style={{ width:28, height:28, flexShrink:0 }}
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            >
+              <Smile size={17} />
+            </button>
+            {showEmojiPicker && (
+              <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: 8, zIndex: 1000 }}>
+                <EmojiPicker onEmojiClick={onEmojiClick} />
+              </div>
+            )}
             <textarea
               ref={taRef}
               className="msg-inp"
