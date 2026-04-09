@@ -92,13 +92,28 @@ export function useMessages(conversationId) {
   }
 
   const editMessage = async (msgId, newContent) => {
-    const { error } = await supabase
-      .from('messages')
-      .update({ content: newContent.trim(), is_edited: true })
-      .eq('id', msgId)
-    if (error) console.error('editMessage error:', error)
+  if (!newContent.trim()) return;
+  
+  // Try to update with is_edited flag first
+  const { error } = await supabase
+    .from('messages')
+    .update({ content: newContent.trim(), is_edited: true })
+    .eq('id', msgId);
+    
+  if (error) {
+    // If column missing, retry without is_edited
+    if (error.message.includes('is_edited')) {
+      const { error: retryError } = await supabase
+        .from('messages')
+        .update({ content: newContent.trim() })
+        .eq('id', msgId);
+      if (retryError) console.error('editMessage fallback error:', retryError);
+    } else {
+      console.error('editMessage error:', error);
+      alert(`Failed to edit: ${error.message}`);
+    }
   }
-
+};
   const deleteMessage = async (msgId) => {
     await supabase
       .from('messages')
