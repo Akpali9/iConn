@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { Reply, Trash2, Pencil, SmilePlus, CheckCheck } from 'lucide-react'
+import { Reply, Trash2, Pencil, SmilePlus, CheckCheck, File } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 const QUICK = ['👍','❤️','😂','😮','😢','🙏']
@@ -45,6 +45,47 @@ export default function MessageBubble({ msg, showSender, onReply, onDelete, onEd
     )
   }
 
+  // Image message
+  if (msg.type === 'image' && msg.file_url) {
+    return (
+      <div className={`msg-wrap ${isOwn ? 'out' : 'in'}`}>
+        {showSender && !isOwn && <div className="msg-sender">{msg.profiles?.display_name || msg.profiles?.username}</div>}
+        <div className="msg-bubble" style={{ padding: '4px' }}>
+          <img 
+            src={msg.file_url} 
+            alt="Shared image" 
+            style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '12px', cursor: 'pointer' }}
+            onClick={() => window.open(msg.file_url, '_blank')}
+          />
+        </div>
+        <div className="msg-meta">
+          <span className="msg-time">{format(new Date(msg.created_at), 'HH:mm')}</span>
+          {isOwn && <CheckCheck size={13} className="check-icon" />}
+        </div>
+      </div>
+    )
+  }
+
+  // File message (document)
+  if (msg.type === 'file' && msg.file_url) {
+    return (
+      <div className={`msg-wrap ${isOwn ? 'out' : 'in'}`}>
+        {showSender && !isOwn && <div className="msg-sender">{msg.profiles?.display_name || msg.profiles?.username}</div>}
+        <div className="msg-bubble" style={{ padding: '8px 12px' }}>
+          <a href={msg.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)', textDecoration: 'none' }}>
+            <File size={20} />
+            <span>{msg.content || 'Download file'}</span>
+          </a>
+        </div>
+        <div className="msg-meta">
+          <span className="msg-time">{format(new Date(msg.created_at), 'HH:mm')}</span>
+          {isOwn && <CheckCheck size={13} className="check-icon" />}
+        </div>
+      </div>
+    )
+  }
+
+  // Regular text message
   return (
     <div className={`msg-wrap ${isOwn ? 'out' : 'in'}`}>
       <div className="msg-actions">
@@ -69,28 +110,38 @@ export default function MessageBubble({ msg, showSender, onReply, onDelete, onEd
       )}
 
       {showSender && !isOwn && <div className="msg-sender">{msg.profiles?.display_name || msg.profiles?.username}</div>}
+      
       {msg.reply && (
         <div className="msg-reply-preview">
           <div className="mrp-name">{msg.reply.profiles?.display_name || 'Reply'}</div>
           <div className="mrp-text">{msg.reply.content?.slice(0, 70)}{msg.reply.content?.length > 70 ? '…' : ''}</div>
         </div>
       )}
+
       <div className="msg-bubble">
         {editing ? (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input value={editVal} onChange={e => setEditVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditing(false) }} style={{ flex:1, background:'rgba(255,255,255,.15)', border:'1px solid rgba(255,255,255,.3)', borderRadius:6, padding:'4px 8px', color:'inherit', fontSize:14, outline:'none' }} autoFocus />
-            <button onClick={saveEdit} style={{ background:'rgba(255,255,255,.2)', border:'none', borderRadius:5, padding:'4px 10px', cursor:'pointer' }}>Save</button>
-            <button onClick={() => setEditing(false)} style={{ background:'none', border:'none', color:'rgba(255,255,255,.5)', cursor:'pointer' }}>✕</button>
+            <input 
+              value={editVal} 
+              onChange={e => setEditVal(e.target.value)} 
+              onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditing(false) }} 
+              style={{ flex: 1, background: 'rgba(255,255,255,.15)', border: '1px solid rgba(255,255,255,.3)', borderRadius: 6, padding: '4px 8px', color: 'inherit', fontSize: 14, outline: 'none' }} 
+              autoFocus 
+            />
+            <button onClick={saveEdit} style={{ background: 'rgba(255,255,255,.2)', border: 'none', borderRadius: 5, padding: '4px 10px', cursor: 'pointer' }}>Save</button>
+            <button onClick={() => setEditing(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.5)', cursor: 'pointer' }}>✕</button>
           </div>
         ) : (
           <div className="msg-text">{msg.content}</div>
         )}
       </div>
+
       <div className="msg-meta">
         {msg.is_edited && <span className="msg-edited">edited ·</span>}
         <span className="msg-time">{format(new Date(msg.created_at), 'HH:mm')}</span>
         {isOwn && <CheckCheck size={13} className="check-icon" />}
       </div>
+
       {rxGroups.length > 0 && (
         <div className="reactions-row">
           {rxGroups.map(({ emoji, count }) => (
