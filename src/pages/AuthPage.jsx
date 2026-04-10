@@ -32,18 +32,22 @@ export default function AuthPage() {
           return
         }
         const { error } = await signUp(form.email, form.password, form.username.trim(), form.name || form.username)
-        if (error) setError(error.message)
-        else setError('Check your email to confirm your account, then sign in.')
+        if (error) {
+          setError(error.message)
+        } else {
+          setError('Check your email to confirm your account, then sign in.')
+        }
       }
-    } catch {
-      setError('Something went wrong.')
+    } catch (err) {
+      console.error('Submit error:', err)
+      setError(err.message || 'Something went wrong. Please try again.')
     }
     setBusy(false)
   }
 
   return (
     <div className="auth-root">
-      {/* Brand panel - centered content */}
+      {/* Brand panel */}
       <div className="auth-brand">
         <div className="auth-brand-content">
           <div className="auth-brand-logo">
