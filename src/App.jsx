@@ -5,7 +5,7 @@ import Sidebar from './components/Sidebar'
 import ChatView from './components/ChatView'
 import ProfileModal from './components/ProfileModal'
 import GroupInfoModal from './components/GroupInfoModal'
-import AuthPage from './components/AuthPage'
+import AuthPage from './pages/AuthPage'
 
 function App() {
   const { user, profile, loading: authLoading, refreshProfile } = useAuth()
