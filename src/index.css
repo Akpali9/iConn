@@ -588,7 +588,7 @@ body {
     box-shadow: 2px 0 10px rgba(0,0,0,0.3);
   }
   .sidebar.open {
-    transform: translateX(0);
+    transform: translateX(0) !important;
   }
 
   /* Backdrop overlay */
