@@ -18,18 +18,20 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
+  // Detect mobile
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth <= 768
       setIsMobile(mobile)
-      if (!mobile) setSidebarOpen(true)
-      else setSidebarOpen(false)
+      if (!mobile) setSidebarOpen(true)   // desktop always open
+      else setSidebarOpen(false)          // mobile closed by default
     }
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
+  // Handle conversation selection
   useEffect(() => {
     if (activeConvId === '__profile__') {
       setShowProfileModal(true)
@@ -38,7 +40,7 @@ function App() {
     } else if (activeConvId) {
       const found = convs.find(c => c.id === activeConvId)
       setActiveConv(found)
-      if (isMobile) setSidebarOpen(false)
+      if (isMobile) setSidebarOpen(false)   // close sidebar when chat opens
     } else {
       setActiveConv(null)
     }
@@ -51,7 +53,7 @@ function App() {
 
   const handleBackToList = () => {
     setActiveConvId(null)
-    if (isMobile) setSidebarOpen(true)
+    if (isMobile) setSidebarOpen(true)      // open sidebar when back to list
   }
 
   const toggleSidebar = () => {
@@ -63,10 +65,10 @@ function App() {
 
   return (
     <div className="app">
+      {/* Mobile backdrop */}
       {isMobile && (
         <div
-          className={`sidebar-backdrop ${sidebarOpen ? 'open' : ''}`}
-          onClick={() => setSidebarOpen(false)}
+          className="sidebar-backdrop"
           style={{
             position: 'fixed',
             top: 0,
@@ -77,20 +79,24 @@ function App() {
             zIndex: 999,
             opacity: sidebarOpen ? 1 : 0,
             visibility: sidebarOpen ? 'visible' : 'hidden',
-            transition: 'opacity 0.3s ease'
+            transition: 'opacity 0.3s ease',
           }}
+          onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      <div style={{
-        position: isMobile ? 'fixed' : 'relative',
-        left: 0,
-        top: 0,
-        bottom: 0,
-        zIndex: 1000,
-        transform: isMobile ? (sidebarOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
-        transition: 'transform 0.3s ease'
-      }}>
+      {/* Sidebar wrapper with inline transform for mobile */}
+      <div
+        style={{
+          position: isMobile ? 'fixed' : 'relative',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          zIndex: 1000,
+          transform: isMobile ? (sidebarOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
+          transition: 'transform 0.3s ease',
+        }}
+      >
         <Sidebar
           convs={convs}
           loading={convsLoading}
@@ -101,7 +107,8 @@ function App() {
         />
       </div>
 
-      <div className="chat-area" style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#0f0f12' }}>
+      {/* Main chat area */}
+      <div className="chat-area" style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
         {activeConv ? (
           <ChatView
             conv={activeConv}
@@ -116,12 +123,12 @@ function App() {
             onBack={isMobile ? handleBackToList : null}
           />
         ) : (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, color: '#9ca3af' }}>
-            <div style={{ fontSize: 64 }}>💬</div>
-            <h2 style={{ color: '#ededee' }}>Welcome to iConn</h2>
+          <div className="welcome-placeholder">
+            <div className="welcome-icon">💬</div>
+            <h2>Welcome to iConn</h2>
             <p>Select a conversation or start a new chat</p>
             {isMobile && convs.length > 0 && (
-              <button onClick={toggleSidebar} style={{ background: '#3b82f6', border: 'none', padding: '10px 16px', borderRadius: 40, fontWeight: 600, color: 'white', cursor: 'pointer', marginTop: 20 }}>
+              <button className="btn-primary" onClick={toggleSidebar} style={{ marginTop: 20 }}>
                 Open Conversations
               </button>
             )}
@@ -129,11 +136,29 @@ function App() {
         )}
       </div>
 
+      {/* Modals */}
       {showProfileModal && (
-        <ProfileModal user={profileUser} onClose={() => setShowProfileModal(false)} currentUserId={user.id} onProfileUpdate={refreshProfile} />
+        <ProfileModal
+          user={profileUser}
+          onClose={() => setShowProfileModal(false)}
+          currentUserId={user.id}
+          onProfileUpdate={refreshProfile}
+        />
       )}
       {showGroupInfo && activeConv && (
-        <GroupInfoModal conversation={activeConv} onClose={(shouldRefresh) => { setShowGroupInfo(false); if (shouldRefresh) { setActiveConvId(null); refetchConvs(); if (isMobile) setSidebarOpen(true); } }} currentUserId={user.id} onUpdate={() => refetchConvs()} />
+        <GroupInfoModal
+          conversation={activeConv}
+          onClose={(shouldRefresh) => {
+            setShowGroupInfo(false)
+            if (shouldRefresh) {
+              setActiveConvId(null)
+              refetchConvs()
+              if (isMobile) setSidebarOpen(true)
+            }
+          }}
+          currentUserId={user.id}
+          onUpdate={() => refetchConvs()}
+        />
       )}
     </div>
   )
