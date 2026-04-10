@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { Mic, Square, Loader2 } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 
 export default function VoiceRecorder({ onSend, disabled }) {
   const [recording, setRecording] = useState(false)
@@ -27,7 +28,7 @@ export default function VoiceRecorder({ onSend, disabled }) {
       mediaRecorder.start()
       setRecording(true)
     } catch (err) {
-      console.error('Microphone access error:', err)
+      console.error('Microphone error:', err)
       alert('Could not access microphone. Please check permissions.')
     }
   }
@@ -45,15 +46,23 @@ export default function VoiceRecorder({ onSend, disabled }) {
       const fileName = `voice_${Date.now()}.webm`
       const { data, error } = await supabase.storage
         .from('voice-messages')
-        .upload(fileName, audioBlob)
-      if (error) throw error
+        .upload(fileName, audioBlob, { contentType: 'audio/webm' })
+      
+      if (error) {
+        console.error('Upload error:', error)
+        alert(`Upload failed: ${error.message}`)
+        setProcessing(false)
+        return
+      }
+      
       const { data: { publicUrl } } = supabase.storage
         .from('voice-messages')
         .getPublicUrl(fileName)
-      await onSend(publicUrl, true) // true indicates audio
+      
+      await onSend(publicUrl)
     } catch (err) {
-      console.error('Audio upload error:', err)
-      alert('Failed to send voice message.')
+      console.error('Audio error:', err)
+      alert(`Failed to send voice message: ${err.message}`)
     }
     setProcessing(false)
   }
