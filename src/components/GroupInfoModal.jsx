@@ -18,7 +18,6 @@ export default function GroupInfoModal({ conversation, onClose, onUpdate, curren
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Confirmation dialogs state
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     title: '',
@@ -55,12 +54,13 @@ export default function GroupInfoModal({ conversation, onClose, onUpdate, curren
       .eq('id', conversation.id)
     if (!error) {
       setIsEditingName(false)
-      onUpdate?.()
+      onUpdate?.() // Refresh conversation list
     } else {
       setError('Failed to update name')
     }
   }
 
+  // ✅ Fixed avatar upload – ensures the conversation list refreshes
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -100,6 +100,7 @@ export default function GroupInfoModal({ conversation, onClose, onUpdate, curren
       setError('Failed to update avatar')
     } else {
       setGroupAvatar(publicUrl)
+      // ✅ Force refresh of the conversation list so sidebar updates
       onUpdate?.()
     }
     setIsUploading(false)
@@ -190,7 +191,6 @@ export default function GroupInfoModal({ conversation, onClose, onUpdate, curren
     })
   }
 
-  // Search users for adding
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (searchQuery.trim()) {
@@ -297,10 +297,7 @@ export default function GroupInfoModal({ conversation, onClose, onUpdate, curren
                       </div>
                     </div>
                     {(isAdmin && m.id !== currentUserId) && (
-                      <button 
-                        className="icon-btn" 
-                        onClick={() => confirmRemoveMember(m.id, m.display_name || m.username)}
-                      >
+                      <button className="icon-btn" onClick={() => confirmRemoveMember(m.id, m.display_name || m.username)}>
                         <UserMinus size={14} />
                       </button>
                     )}
@@ -324,7 +321,6 @@ export default function GroupInfoModal({ conversation, onClose, onUpdate, curren
         </div>
       </div>
 
-      {/* Confirm Dialog */}
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
