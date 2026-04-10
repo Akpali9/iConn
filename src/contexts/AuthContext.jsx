@@ -14,8 +14,11 @@ export function AuthProvider({ children }) {
       .select('*')
       .eq('id', userId)
       .single()
-    if (!error && data) setProfile(data)
-    return data
+    if (!error && data) {
+      setProfile(data)
+      return data
+    }
+    return null
   }
 
   useEffect(() => {
@@ -35,21 +38,29 @@ export function AuthProvider({ children }) {
   }, [])
 
   const refreshProfile = async () => {
-    if (user) return await fetchProfile(user.id)
+    if (!user) return null
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+    if (!error && data) {
+      setProfile(data)
+      return data
+    }
+    return null
   }
 
   const signOut = async () => {
     await supabase.auth.signOut()
   }
 
-  // ✅ Improved signIn with error logging
   const signIn = async (email, password) => {
     const result = await supabase.auth.signInWithPassword({ email, password })
     if (result.error) console.error('SignIn error:', result.error)
     return result
   }
 
-  // ✅ Improved signUp with fallback profile creation
   const signUp = async (email, password, username, displayName) => {
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -68,9 +79,7 @@ export function AuthProvider({ children }) {
         return { data, error }
       }
 
-      // If user is created but profile wasn't (trigger may have failed), create it manually
       if (data?.user) {
-        // Wait a moment for the trigger, then check
         setTimeout(async () => {
           const { data: existingProfile } = await supabase
             .from('profiles')
@@ -79,14 +88,12 @@ export function AuthProvider({ children }) {
             .single()
 
           if (!existingProfile) {
-            // Manually create profile
-            const { error: insertError } = await supabase.from('profiles').insert({
+            await supabase.from('profiles').insert({
               id: data.user.id,
               username: username.toLowerCase(),
               display_name: displayName || username,
               email: email
             })
-            if (insertError) console.error('Manual profile creation failed:', insertError)
           }
         }, 1000)
       }
