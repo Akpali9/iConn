@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
-import { Phone, Video, Search, Info, Smile, Paperclip, Send, Mic, X } from 'lucide-react'
+import { Phone, Video, Search, Info, Smile, Paperclip, Send, Mic, X, Loader2, File } from 'lucide-react'
 import { format, isToday, isYesterday } from 'date-fns'
 import EmojiPicker from 'emoji-picker-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useMessages } from '../hooks/useChat'
+import { supabase } from '../lib/supabase'
 import Avatar from './Avatar'
 import MessageBubble from './MessageBubble'
 import CallModal from './CallModal'
@@ -20,9 +21,11 @@ export default function ChatView({ conv, onShowInfo, onBack }) {
   const [showCallModal, setShowCallModal] = useState(false)
   const [isVideoCall, setIsVideoCall] = useState(false)
   const [showGroupInfo, setShowGroupInfo] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const taRef = useRef(null)
   const emojiButtonRef = useRef(null)
   const emojiPickerRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   const isGroup = conv?.type === 'group'
   const partner = !isGroup ? conv?.members?.[0] : null
@@ -61,6 +64,39 @@ export default function ChatView({ conv, onShowInfo, onBack }) {
     setSending(true)
     const ok = await sendMessage('', replyTo?.id || null, audioUrl, 'audio')
     setSending(false)
+  }
+
+  const handleFileSelect = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File too large. Max 10MB.')
+      return
+    }
+    setUploading(true)
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
+      const filePath = `chat/${conv?.id}/${fileName}`
+      const { error } = await supabase.storage
+        .from('chat-files')
+        .upload(filePath, file, { contentType: file.type })
+      if (error) throw error
+      const { data: { publicUrl } } = supabase.storage
+        .from('chat-files')
+        .getPublicUrl(filePath)
+      const isImage = file.type.startsWith('image/')
+      const messageType = isImage ? 'image' : 'file'
+      const content = isImage ? '📷 Image' : `📎 ${file.name}`
+      await sendMessage(content, replyTo?.id || null, publicUrl, messageType)
+      setReplyTo(null)
+    } catch (err) {
+      console.error('File upload error:', err)
+      alert('Failed to upload file.')
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   const onKey = (e) => {
@@ -168,7 +204,16 @@ export default function ChatView({ conv, onShowInfo, onBack }) {
           </div>
         )}
         <div className="input-row">
-          <button className="icon-btn"><Paperclip size={17} /></button>
+          <button className="icon-btn" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+            {uploading ? <Loader2 size={17} className="spin" /> : <Paperclip size={17} />}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,application/pdf,.doc,.docx,.txt"
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+          />
           <div className="input-box" style={{ position: 'relative' }}>
             <button ref={emojiButtonRef} className="icon-btn" style={{ width:28, height:28, flexShrink:0 }} onClick={() => setShowEmojiPicker(!showEmojiPicker)} type="button"><Smile size={17} /></button>
             {showEmojiPicker && (
@@ -183,7 +228,7 @@ export default function ChatView({ conv, onShowInfo, onBack }) {
               <Send size={17} />
             </button>
           ) : (
-            <VoiceRecorder onSend={handleSendAudio} disabled={sending} />
+            <VoiceRecorder onSend={handleSendAudio} disabled={sending || uploading} />
           )}
         </div>
       </div>
