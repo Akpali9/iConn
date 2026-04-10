@@ -22,9 +22,8 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // If profile is not loaded, show loader
   if (!profile) {
-    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><div className="spinner" /></div>
+    return <div className="loading-screen"><div className="spinner" /></div>
   }
 
   const filtered = convs.filter(c => {
@@ -50,22 +49,16 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
       <aside style={{
         width: isMobile ? '85%' : '320px',
         maxWidth: isMobile ? '300px' : 'none',
-        position: isMobile ? 'fixed' : 'relative',
-        left: 0,
-        top: 0,
-        bottom: 0,
         background: '#18181b',
         borderRight: '1px solid #2a2a2f',
         display: 'flex',
         flexDirection: 'column',
-        zIndex: 1000,
-        transform: isMobile ? (window.innerWidth <= 768 ? 'translateX(-100%)' : 'translateX(0)') : 'none',
-        transition: 'transform 0.3s ease',
+        height: '100%',
         color: '#ededee'
-      }} className={isMobile ? (window.innerWidth <= 768 ? '' : '') : ''}>
+      }}>
         {isMobile && (
-          <button onClick={onCloseSidebar} style={{ position: 'absolute', top: 16, right: 16, background: '#202024', border: 'none', borderRadius: 8, padding: 6, cursor: 'pointer', color: '#9ca3af' }}>
-            <X size={18} />
+          <button onClick={onCloseSidebar} style={{ position: 'absolute', top: 16, right: 16, background: '#202024', border: 'none', borderRadius: 8, padding: 6, cursor: 'pointer', zIndex: 10 }}>
+            <X size={18} color="#9ca3af" />
           </button>
         )}
         <div style={{ padding: '20px 16px 12px', borderBottom: '1px solid #2a2a2f' }}>
@@ -74,7 +67,7 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
               <div style={{ background: '#3b82f6', width: 32, height: 32, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <MessageCircle size={18} color="#fff" />
               </div>
-              <span style={{ fontWeight: 700, fontSize: 18 }}>i<span style={{ fontWeight: 400, color: '#9ca3af' }}>Conn</span></span>
+              <span style={{ fontWeight: 700, fontSize: 18, color: '#ededee' }}>i<span style={{ fontWeight: 400, color: '#9ca3af' }}>Conn</span></span>
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={() => setModal('direct')} style={{ background: 'transparent', border: 'none', color: '#9ca3af', cursor: 'pointer', padding: 6, borderRadius: 8 }}><UserPlus size={16} /></button>
@@ -82,12 +75,12 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#202024', padding: '6px 12px', borderRadius: 40, border: '1px solid #2a2a2f' }}>
-            <Search size={14} />
+            <Search size={14} color="#9ca3af" />
             <input placeholder="Search conversations…" value={q} onChange={e => setQ(e.target.value)} style={{ background: 'transparent', border: 'none', outline: 'none', color: '#ededee', width: '100%', fontSize: 14 }} />
           </div>
         </div>
 
-        {/* Profile section - forced visible */}
+        {/* Profile section (top) */}
         <div onClick={() => onShowProfile(profile)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid #2a2a2f', cursor: 'pointer', background: '#18181b' }}>
           <Avatar name={profile.display_name || ''} src={profile.avatar_url} size={48} />
           <div>
