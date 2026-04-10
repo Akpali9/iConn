@@ -43,17 +43,19 @@ export default function AuthPage() {
 
   return (
     <div className="auth-root">
-      {/* Brand panel */}
+      {/* Brand panel - centered content */}
       <div className="auth-brand">
-        <div className="auth-brand-logo">
-          <div className="auth-brand-icon">
-            <MessageCircle size={26} color="#fff" />
+        <div className="auth-brand-content">
+          <div className="auth-brand-logo">
+            <div className="auth-brand-icon">
+              <MessageCircle size={26} color="#fff" />
+            </div>
+            <span className="auth-brand-name">iConn</span>
           </div>
-          <span className="auth-brand-name">iConn</span>
+          <p className="auth-brand-tagline">
+            Real‑time conversations that feel effortless. Connect with anyone, anywhere.
+          </p>
         </div>
-        <p className="auth-brand-tagline">
-          Real‑time conversations that feel effortless. Connect with anyone, anywhere.
-        </p>
         <div className="auth-brand-dots">
           <span /><span /><span />
         </div>
