@@ -1173,7 +1173,7 @@ body {
   50% { opacity: 1; transform: scale(1); }
 }
 
-/* ========== MOBILE RESPONSIVE ========== */
+/* ========== MOBILE RESPONSIVE (FULLY RESTORED) ========== */
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;
