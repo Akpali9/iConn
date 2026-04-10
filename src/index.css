@@ -593,7 +593,7 @@ body {
 
   /* Backdrop overlay */
   .sidebar-backdrop {
-    position: fixed;
+    position: relative;
     top: 0;
     left: 0;
     right: 0;
@@ -605,8 +605,8 @@ body {
     transition: opacity 0.3s ease;
   }
   .sidebar-backdrop.open {
-    opacity: 0;
-    visibility: hidden;
+    opacity: 1;
+    visibility: visible;
   }
 
   /* Chat area takes full width */
