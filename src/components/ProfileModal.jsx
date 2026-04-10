@@ -1,15 +1,20 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Upload, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { supabase } from '../lib/supabase'
 import Avatar from './Avatar'
-import { useAuth } from '../contexts/AuthContext'  // ✅ added to refresh profile
+import { useAuth } from '../contexts/AuthContext'
 
 export default function ProfileModal({ user: targetUser, onClose, currentUserId, onProfileUpdate }) {
   const [uploading, setUploading] = useState(false)
-  const { refreshProfile } = useAuth()  // ✅ get refresh function
+  const { refreshProfile, profile: currentProfile } = useAuth()
   const isSelf = targetUser?.id === currentUserId
   const [localUser, setLocalUser] = useState(targetUser)
+
+  // Update localUser when targetUser prop changes (e.g., after refresh)
+  useEffect(() => {
+    setLocalUser(targetUser)
+  }, [targetUser])
 
   if (!targetUser) return null
 
@@ -17,7 +22,6 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId,
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file type & size
     if (!file.type.startsWith('image/')) {
       alert('Please select an image file')
       return
@@ -29,11 +33,11 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId,
 
     setUploading(true)
 
-    // Upload to Supabase Storage
     const fileExt = file.name.split('.').pop()
     const fileName = `${Date.now()}.${fileExt}`
     const filePath = `${currentUserId}/${fileName}`
 
+    // Upload to avatars bucket (make sure bucket exists and is public or use signed URLs)
     const { error: uploadError } = await supabase.storage
       .from('avatars')
       .upload(filePath, file)
@@ -44,7 +48,7 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId,
       return
     }
 
-    // Get public URL
+    // Get public URL (if bucket is public) or generate signed URL
     const { data: { publicUrl } } = supabase.storage
       .from('avatars')
       .getPublicUrl(filePath)
@@ -58,12 +62,21 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId,
     if (updateError) {
       alert('Failed to update profile: ' + updateError.message)
     } else {
-      // ✅ Refresh the profile in AuthContext so sidebar updates immediately
-      await refreshProfile()
+      // Refresh the AuthContext profile
+      const refreshed = await refreshProfile()
       
       // Update local state for this modal
-      setLocalUser({ ...localUser, avatar_url: publicUrl })
-      if (onProfileUpdate) onProfileUpdate({ avatar_url: publicUrl })
+      if (refreshed) {
+        setLocalUser(refreshed)
+      } else {
+        // Fallback: manually update localUser
+        setLocalUser({ ...localUser, avatar_url: publicUrl })
+      }
+      
+      // Notify parent component if callback provided
+      if (onProfileUpdate) {
+        onProfileUpdate({ avatar_url: publicUrl })
+      }
     }
 
     setUploading(false)
@@ -80,8 +93,8 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId,
         <div style={{ textAlign: 'center', padding: '16px 0 8px', position: 'relative' }}>
           <div style={{ position: 'relative', display: 'inline-block' }}>
             <Avatar 
-              name={localUser.display_name || localUser.username} 
-              src={localUser.avatar_url} 
+              name={localUser?.display_name || localUser?.username || ''} 
+              src={localUser?.avatar_url} 
               size={100} 
             />
             {isSelf && (
@@ -115,13 +128,13 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId,
             )}
           </div>
           <div style={{ fontSize: 20, fontWeight: 600, marginTop: 12 }}>
-            {localUser.display_name || localUser.username}
+            {localUser?.display_name || localUser?.username}
           </div>
-          <div style={{ color: 'var(--ink-40)', fontSize: 13 }}>@{localUser.username}</div>
+          <div style={{ color: 'var(--ink-40)', fontSize: 13 }}>@{localUser?.username}</div>
         </div>
 
         <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {localUser.bio && (
+          {localUser?.bio && (
             <div>
               <div style={{ fontSize: 11, color: 'var(--ink-40)', marginBottom: 3 }}>BIO</div>
               <div>{localUser.bio}</div>
@@ -129,13 +142,13 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId,
           )}
           <div>
             <div style={{ fontSize: 11, color: 'var(--ink-40)', marginBottom: 3 }}>EMAIL</div>
-            <div>{localUser.email || 'Not shared'}</div>
+            <div>{localUser?.email || 'Not shared'}</div>
           </div>
           <div>
             <div style={{ fontSize: 11, color: 'var(--ink-40)', marginBottom: 3 }}>JOINED</div>
-            <div>{format(new Date(localUser.created_at), 'MMM d, yyyy')}</div>
+            <div>{localUser?.created_at ? format(new Date(localUser.created_at), 'MMM d, yyyy') : 'Unknown'}</div>
           </div>
-          {localUser.is_online && (
+          {localUser?.is_online && (
             <div className="status-badge online" style={{ background:'var(--success)', color:'white', padding:'4px 12px', borderRadius:20, textAlign:'center', fontSize:12, width:'fit-content' }}>
               Online now
             </div>
