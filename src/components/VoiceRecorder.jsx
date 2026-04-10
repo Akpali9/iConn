@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { Mic, Square, Loader2 } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { supabase } from '../lib/supabase'   
 
 export default function VoiceRecorder({ onSend, disabled }) {
   const [recording, setRecording] = useState(false)
