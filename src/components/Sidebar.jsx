@@ -46,7 +46,7 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
 
   return (
     <>
-      <aside className="sidebar">
+      <aside className="sidebar open">
         {isMobile && (
           <button className="icon-btn mobile-close-btn" onClick={onCloseSidebar} style={{ position: 'absolute', top: 16, right: 16, zIndex: 10, background: 'var(--surface-2)' }}>
             <X size={18} />
