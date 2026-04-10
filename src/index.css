@@ -593,7 +593,7 @@ body {
 
   /* Backdrop overlay */
   .sidebar-backdrop {
-    position: relative;
+    position: fixed;
     top: 0;
     left: 0;
     right: 0;
@@ -606,6 +606,7 @@ body {
   }
   .sidebar-backdrop.open {
     opacity: 1;
+    transform: translateX(-100%);
     visibility: visible;
   }
 
