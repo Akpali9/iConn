@@ -22,7 +22,13 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  if (!profile) return <div className="loading-screen"><div className="spinner" /></div>
+  // DEBUG: log profile and convs
+  console.log('Sidebar render:', { profile, convsLength: convs.length, loading })
+
+  if (!profile) {
+    console.log('Profile is null – showing loader')
+    return <div className="loading-screen"><div className="spinner" /></div>
+  }
 
   const filtered = convs.filter(c => {
     const name = convName(c)
@@ -44,7 +50,7 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
 
   return (
     <>
-      <aside className="sidebar">
+      <aside className="sidebar" style={{ background: 'var(--surface)', color: 'var(--text)' }}>
         {isMobile && (
           <button className="icon-btn mobile-close-btn" onClick={onCloseSidebar} style={{ position: 'absolute', top: 16, right: 16, zIndex: 10, background: 'var(--surface-2)' }}>
             <X size={18} />
@@ -67,11 +73,11 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
           </div>
         </div>
 
-        {/* Profile section – placed prominently at the top */}
-        <div className="sidebar-profile-top" onClick={() => onShowProfile(profile)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
+        {/* Profile section – prominently at the top */}
+        <div className="sidebar-profile-top" onClick={() => onShowProfile(profile)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: '1px solid var(--border)', cursor: 'pointer', background: 'var(--surface)' }}>
           <Avatar name={profile.display_name || ''} src={profile.avatar_url} size={48} />
           <div>
-            <div style={{ fontWeight: 600 }}>{profile.display_name || 'You'}</div>
+            <div style={{ fontWeight: 600, color: 'var(--text)' }}>{profile.display_name || 'You'}</div>
             <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>@{profile.username}</div>
           </div>
         </div>
@@ -85,7 +91,9 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
           {loading ? (
             Array(6).fill(0).map((_,i) => <SkelItem key={i} />)
           ) : filtered.length === 0 ? (
-            <div className="empty-list">{q ? 'No conversations match.' : 'No conversations yet.\nStart a new chat!'}</div>
+            <div className="empty-list" style={{ padding: '20px', textAlign: 'center', color: 'var(--text-dim)' }}>
+              {q ? 'No conversations match.' : 'No conversations yet.\nStart a new chat!'}
+            </div>
           ) : (
             filtered.map(c => (
               <ConvRow
@@ -125,7 +133,7 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
   )
 }
 
-// ConvRow, GrpAv, SkelItem, convName remain unchanged (same as previous)
+// ConvRow, GrpAv, SkelItem, convName remain the same (include them)
 function ConvRow({ c, active, onClick, onShowProfile, onDelete }) {
   const name = convName(c)
   const member = c.members?.[0]
@@ -145,6 +153,34 @@ function ConvRow({ c, active, onClick, onShowProfile, onDelete }) {
     </div>
   )
 }
-function GrpAv({ members = [] }) { const show = members.slice(0,4); const colors=['#e8501a','#1a6fe8','#1da462','#9333ea']; return (<div className="grp-av">{Array(4).fill(0).map((_,i)=><div key={i} className="grp-av-cell" style={{background: show[i]?colors[i]:'var(--canvas-3)'}}>{show[i]?(show[i].display_name?.[0]||'?').toUpperCase():''}</div>)}</div>) }
-function SkelItem() { return (<div className="conv-item" style={{pointerEvents:'none'}}><div className="skel" style={{width:48,height:48,borderRadius:'50%',flexShrink:0}}/><div style={{flex:1,display:'flex',flexDirection:'column',gap:8}}><div className="skel" style={{height:13,width:'55%'}}/><div className="skel" style={{height:11,width:'75%'}}/></div></div>) }
-function convName(c) { if (c.type === 'group') return c.name || 'Group'; return c.members?.[0]?.display_name || c.members?.[0]?.username || 'Unknown' }
+
+function GrpAv({ members = [] }) {
+  const show = members.slice(0,4)
+  const colors = ['#e8501a','#1a6fe8','#1da462','#9333ea']
+  return (
+    <div className="grp-av">
+      {Array(4).fill(0).map((_,i)=>(
+        <div key={i} className="grp-av-cell" style={{ background: show[i] ? colors[i] : 'var(--canvas-3)' }}>
+          {show[i] ? (show[i].display_name?.[0]||'?').toUpperCase() : ''}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function SkelItem() {
+  return (
+    <div className="conv-item" style={{ pointerEvents: 'none' }}>
+      <div className="skel" style={{ width:48, height:48, borderRadius:'50%', flexShrink:0 }} />
+      <div style={{ flex:1, display:'flex', flexDirection:'column', gap:8 }}>
+        <div className="skel" style={{ height:13, width:'55%' }} />
+        <div className="skel" style={{ height:11, width:'75%' }} />
+      </div>
+    </div>
+  )
+}
+
+function convName(c) {
+  if (c.type === 'group') return c.name || 'Group'
+  return c.members?.[0]?.display_name || c.members?.[0]?.username || 'Unknown'
+}
