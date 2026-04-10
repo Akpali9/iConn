@@ -5,7 +5,7 @@ import Sidebar from './components/Sidebar'
 import ChatView from './components/ChatView'
 import ProfileModal from './components/ProfileModal'
 import GroupInfoModal from './components/GroupInfoModal'
-import Login from './components/Login'
+import AuthPage from './pages/AuthPage'
 
 function App() {
   const { user, profile, loading: authLoading, refreshProfile } = useAuth()
@@ -61,7 +61,7 @@ function App() {
   }
 
   if (authLoading) return <div className="loading-screen"><div className="spinner" /></div>
-  if (!user) return <Login />
+  if (!user) return <AuthPage />
 
   return (
     <div className="app">
