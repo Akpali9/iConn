@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'  // ✅ added useEffect
 import { X, Upload, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { supabase } from '../lib/supabase'
@@ -7,14 +7,21 @@ import { useAuth } from '../contexts/AuthContext'
 
 export default function ProfileModal({ user: targetUser, onClose, currentUserId, onProfileUpdate }) {
   const [uploading, setUploading] = useState(false)
-  const { refreshProfile, profile: currentProfile } = useAuth()
+  const { refreshProfile, profile: currentProfile } = useAuth()  // ✅ get currentProfile from context
   const isSelf = targetUser?.id === currentUserId
   const [localUser, setLocalUser] = useState(targetUser)
 
-  // Update localUser when targetUser prop changes (e.g., after refresh)
+  // ✅ Sync localUser when targetUser changes (e.g., after refresh)
   useEffect(() => {
     setLocalUser(targetUser)
   }, [targetUser])
+
+  // ✅ For self profile, also sync with context profile if available (more reliable)
+  useEffect(() => {
+    if (isSelf && currentProfile) {
+      setLocalUser(currentProfile)
+    }
+  }, [isSelf, currentProfile])
 
   if (!targetUser) return null
 
@@ -37,7 +44,6 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId,
     const fileName = `${Date.now()}.${fileExt}`
     const filePath = `${currentUserId}/${fileName}`
 
-    // Upload to avatars bucket (make sure bucket exists and is public or use signed URLs)
     const { error: uploadError } = await supabase.storage
       .from('avatars')
       .upload(filePath, file)
@@ -48,12 +54,10 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId,
       return
     }
 
-    // Get public URL (if bucket is public) or generate signed URL
     const { data: { publicUrl } } = supabase.storage
       .from('avatars')
       .getPublicUrl(filePath)
 
-    // Update profile in database
     const { error: updateError } = await supabase
       .from('profiles')
       .update({ avatar_url: publicUrl })
@@ -62,18 +66,13 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId,
     if (updateError) {
       alert('Failed to update profile: ' + updateError.message)
     } else {
-      // Refresh the AuthContext profile
-      const refreshed = await refreshProfile()
+      // ✅ Refresh the profile in AuthContext (updates sidebar and currentProfile)
+      await refreshProfile()
       
-      // Update local state for this modal
-      if (refreshed) {
-        setLocalUser(refreshed)
-      } else {
-        // Fallback: manually update localUser
-        setLocalUser({ ...localUser, avatar_url: publicUrl })
-      }
+      // ✅ Update local state for this modal
+      setLocalUser(prev => ({ ...prev, avatar_url: publicUrl }))
       
-      // Notify parent component if callback provided
+      // ✅ Notify parent component so it can update its own user object
       if (onProfileUpdate) {
         onProfileUpdate({ avatar_url: publicUrl })
       }
