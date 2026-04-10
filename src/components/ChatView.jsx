@@ -8,6 +8,7 @@ import Avatar from './Avatar'
 import MessageBubble from './MessageBubble'
 import CallModal from './CallModal'
 import GroupInfoModal from './GroupInfoModal'
+import VoiceRecorder from './VoiceRecorder'
 
 export default function ChatView({ conv, onShowInfo, onBack }) {
   const { user } = useAuth()
@@ -46,15 +47,35 @@ export default function ChatView({ conv, onShowInfo, onBack }) {
     if (!text.trim() || sending) return
     setSending(true)
     const ok = await sendMessage(text, replyTo?.id || null)
-    if (ok) { setText(''); setReplyTo(null); if (taRef.current) taRef.current.style.height = 'auto' }
+    if (ok) {
+      setText('')
+      setReplyTo(null)
+      if (taRef.current) taRef.current.style.height = 'auto'
+    }
     setSending(false)
     taRef.current?.focus()
   }
 
-  const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }
+  const handleSendAudio = async (audioUrl) => {
+    if (!audioUrl) return
+    setSending(true)
+    const ok = await sendMessage('', replyTo?.id || null, audioUrl, 'audio')
+    setSending(false)
+  }
+
+  const onKey = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
+    }
+  }
+
   const onInput = (e) => {
-    setText(e.target.value); startTyping()
-    const ta = e.target; ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'
+    setText(e.target.value)
+    startTyping()
+    const ta = e.target
+    ta.style.height = 'auto'
+    ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'
   }
 
   const onEmojiClick = (emojiObject) => {
@@ -78,6 +99,7 @@ export default function ChatView({ conv, onShowInfo, onBack }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Header */}
       <div className="chat-head">
         {isMobile && onBack && (
           <button className="icon-btn mobile-back-btn" onClick={onBack} style={{ marginRight: 8, fontSize: 20 }}>←</button>
@@ -99,12 +121,15 @@ export default function ChatView({ conv, onShowInfo, onBack }) {
           <button className="icon-btn" onClick={() => { if (isGroup) setShowGroupInfo(true); else onShowInfo() }}><Info size={16} /></button>
         </div>
       </div>
+
+      {/* Messages */}
       <div className="msgs-scroll">
         {loading ? (
           <div style={{ display:'flex', justifyContent:'center', padding:48 }}><div className="spinner" /></div>
         ) : msgs.length === 0 ? (
           <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flex:1, gap:12, color:'var(--ink-40)', paddingTop:60 }}>
-            <div style={{ fontSize:48 }}>💬</div><p style={{ fontSize:14, textAlign:'center' }}>No messages yet. Say hi to {name}!</p>
+            <div style={{ fontSize:48 }}>💬</div>
+            <p style={{ fontSize:14, textAlign:'center' }}>No messages yet. Say hi to {name}!</p>
           </div>
         ) : (
           grouped.map(({ date, items }) => (
@@ -133,6 +158,8 @@ export default function ChatView({ conv, onShowInfo, onBack }) {
         )}
         <div ref={bottomRef} />
       </div>
+
+      {/* Input Area */}
       <div className="chat-input-zone">
         {replyTo && (
           <div className="reply-bar">
@@ -151,14 +178,51 @@ export default function ChatView({ conv, onShowInfo, onBack }) {
             )}
             <textarea ref={taRef} className="msg-inp" placeholder="Type a message…" value={text} onChange={onInput} onKeyDown={onKey} rows={1} />
           </div>
-          <button className="send-btn" onClick={handleSend} disabled={!text.trim() || sending}>{text.trim() ? <Send size={17} /> : <Mic size={17} />}</button>
+          {text.trim() ? (
+            <button className="send-btn" onClick={handleSend} disabled={!text.trim() || sending}>
+              <Send size={17} />
+            </button>
+          ) : (
+            <VoiceRecorder onSend={handleSendAudio} disabled={sending} />
+          )}
         </div>
       </div>
-      {showCallModal && <CallModal conversationId={conv?.id} currentUserId={user.id} targetUserId={partner?.id} onClose={() => setShowCallModal(false)} isVideo={isVideoCall} />}
-      {showGroupInfo && <GroupInfoModal conversation={conv} onClose={() => setShowGroupInfo(false)} currentUserId={user.id} onUpdate={() => {}} />}
+
+      {/* Modals */}
+      {showCallModal && (
+        <CallModal
+          conversationId={conv?.id}
+          currentUserId={user.id}
+          targetUserId={partner?.id}
+          onClose={() => setShowCallModal(false)}
+          isVideo={isVideoCall}
+        />
+      )}
+      {showGroupInfo && (
+        <GroupInfoModal
+          conversation={conv}
+          onClose={() => setShowGroupInfo(false)}
+          currentUserId={user.id}
+          onUpdate={() => {}}
+        />
+      )}
     </div>
   )
 }
 
-function groupByDate(msgs) { const map = {}; for (const m of msgs) { const d = format(new Date(m.created_at), 'yyyy-MM-dd'); if (!map[d]) map[d] = []; map[d].push(m) } return Object.entries(map).map(([date, items]) => ({ date, items })) }
-function dateLabel(str) { const d = new Date(str); if (isToday(d)) return 'Today'; if (isYesterday(d)) return 'Yesterday'; return format(d, 'MMMM d, yyyy') }
+function groupByDate(msgs) {
+  const map = {}
+  for (const m of msgs) {
+    const d = format(new Date(m.created_at), 'yyyy-MM-dd')
+    if (!map[d]) map[d] = []
+    map[d].push(m)
+  }
+  return Object.entries(map).map(([date, items]) => ({ date, items }))
+}
+
+function dateLabel(str) {
+  const d = new Date(str)
+  if (isToday(d)) return 'Today'
+  if (isYesterday(d)) return 'Yesterday'
+  return format(d, 'MMMM d, yyyy')
+}
