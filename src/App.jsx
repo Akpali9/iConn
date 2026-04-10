@@ -18,20 +18,18 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
-  // Detect mobile screen size
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth <= 768
       setIsMobile(mobile)
-      if (!mobile) setSidebarOpen(true)   // desktop: always open
-      else setSidebarOpen(false)          // mobile: closed by default
+      if (!mobile) setSidebarOpen(true)
+      else setSidebarOpen(false)
     }
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // Update active conversation when ID changes
   useEffect(() => {
     if (activeConvId === '__profile__') {
       setShowProfileModal(true)
@@ -40,7 +38,7 @@ function App() {
     } else if (activeConvId) {
       const found = convs.find(c => c.id === activeConvId)
       setActiveConv(found)
-      if (isMobile) setSidebarOpen(false)   // close sidebar when chat opens
+      if (isMobile) setSidebarOpen(false)
     } else {
       setActiveConv(null)
     }
@@ -53,7 +51,7 @@ function App() {
 
   const handleBackToList = () => {
     setActiveConvId(null)
-    if (isMobile) setSidebarOpen(true)     // open sidebar when back to list
+    if (isMobile) setSidebarOpen(true)
   }
 
   const toggleSidebar = () => {
@@ -65,16 +63,34 @@ function App() {
 
   return (
     <div className="app">
-      {/* Mobile backdrop overlay */}
       {isMobile && (
         <div
           className={`sidebar-backdrop ${sidebarOpen ? 'open' : ''}`}
           onClick={() => setSidebarOpen(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            zIndex: 999,
+            opacity: sidebarOpen ? 1 : 0,
+            visibility: sidebarOpen ? 'visible' : 'hidden',
+            transition: 'opacity 0.3s ease'
+          }}
         />
       )}
 
-      {/* Sidebar */}
-      <div className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+      <div style={{
+        position: isMobile ? 'fixed' : 'relative',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        zIndex: 1000,
+        transform: isMobile ? (sidebarOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
+        transition: 'transform 0.3s ease'
+      }}>
         <Sidebar
           convs={convs}
           loading={convsLoading}
@@ -85,8 +101,7 @@ function App() {
         />
       </div>
 
-      {/* Main chat area */}
-      <div className="chat-area">
+      <div className="chat-area" style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#0f0f12' }}>
         {activeConv ? (
           <ChatView
             conv={activeConv}
@@ -101,12 +116,12 @@ function App() {
             onBack={isMobile ? handleBackToList : null}
           />
         ) : (
-          <div className="welcome-placeholder">
-            <div className="welcome-icon">💬</div>
-            <h2>Welcome to iConn</h2>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, color: '#9ca3af' }}>
+            <div style={{ fontSize: 64 }}>💬</div>
+            <h2 style={{ color: '#ededee' }}>Welcome to iConn</h2>
             <p>Select a conversation or start a new chat</p>
             {isMobile && convs.length > 0 && (
-              <button className="btn-primary" onClick={toggleSidebar} style={{ marginTop: 20 }}>
+              <button onClick={toggleSidebar} style={{ background: '#3b82f6', border: 'none', padding: '10px 16px', borderRadius: 40, fontWeight: 600, color: 'white', cursor: 'pointer', marginTop: 20 }}>
                 Open Conversations
               </button>
             )}
@@ -114,31 +129,11 @@ function App() {
         )}
       </div>
 
-      {/* Profile modal */}
       {showProfileModal && (
-        <ProfileModal
-          user={profileUser}
-          onClose={() => setShowProfileModal(false)}
-          currentUserId={user.id}
-          onProfileUpdate={refreshProfile}
-        />
+        <ProfileModal user={profileUser} onClose={() => setShowProfileModal(false)} currentUserId={user.id} onProfileUpdate={refreshProfile} />
       )}
-
-      {/* Group info modal */}
       {showGroupInfo && activeConv && (
-        <GroupInfoModal
-          conversation={activeConv}
-          onClose={(shouldRefresh) => {
-            setShowGroupInfo(false)
-            if (shouldRefresh) {
-              setActiveConvId(null)
-              refetchConvs()
-              if (isMobile) setSidebarOpen(true)
-            }
-          }}
-          currentUserId={user.id}
-          onUpdate={() => refetchConvs()}
-        />
+        <GroupInfoModal conversation={activeConv} onClose={(shouldRefresh) => { setShowGroupInfo(false); if (shouldRefresh) { setActiveConvId(null); refetchConvs(); if (isMobile) setSidebarOpen(true); } }} currentUserId={user.id} onUpdate={() => refetchConvs()} />
       )}
     </div>
   )
