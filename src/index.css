@@ -1189,7 +1189,7 @@ body {
     box-shadow: var(--shadow-lg);
   }
   .sidebar.open {
-    transform: translateX(0);
+    transform: translateX(100);
   }
   .sidebar-backdrop {
     position: fixed;
