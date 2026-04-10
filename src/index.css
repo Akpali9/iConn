@@ -573,7 +573,7 @@ body {
 
 /* ========== MOBILE RESPONSIVE (FIXED) ========== */
 @media (max-width: 768px) {
-  /* Sidebar slides in from left */
+  /* Sidebar hidden by default, slides in when .open is added */
   .sidebar {
     position: fixed;
     left: 0;
@@ -582,7 +582,7 @@ body {
     width: 85%;
     max-width: 300px;
     z-index: 1000;
-    transform: translateX(0) !important;
+    transform: translateX(-100%);
     transition: transform 0.3s ease;
     background: var(--surface);
     box-shadow: 2px 0 10px rgba(0,0,0,0.3);
@@ -651,11 +651,9 @@ body {
 }
 
 @media (min-width: 769px) {
-  /* Hide mobile back button on desktop */
   .mobile-back-btn {
     display: none;
   }
-  /* Sidebar is always visible */
   .sidebar {
     transform: translateX(0) !important;
     position: relative;
