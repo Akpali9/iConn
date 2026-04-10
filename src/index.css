@@ -1180,7 +1180,7 @@ body {
     left: 0;
     top: 0;
     bottom: 0;
-    width: 85%;
+
     max-width: 300px;
     z-index: 1000;
     transform: translateX(-100%);
@@ -1189,7 +1189,7 @@ body {
     box-shadow: var(--shadow-lg);
   }
   .sidebar.open {
-    transform: translateX(100);
+    transform: translateX(0);
   }
   .sidebar-backdrop {
     position: fixed;
