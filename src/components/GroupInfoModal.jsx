@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react'
-import { X, Users, UserPlus, UserMinus, Edit2, Trash2, LogOut, Upload, Loader2 } from 'lucide-react'
+import { X, UserPlus, UserMinus, Edit2, Trash2, LogOut, Upload, Loader2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../contexts/AuthContext'
 import Avatar from './Avatar'
 import { useUsers } from '../hooks/useChat'
 
 export default function GroupInfoModal({ conversation, onClose, onUpdate, currentUserId }) {
-  const { user } = useAuth()
   const { search } = useUsers()
   const [members, setMembers] = useState(conversation.allMembers || [])
   const [groupName, setGroupName] = useState(conversation.name || '')
@@ -35,8 +33,7 @@ export default function GroupInfoModal({ conversation, onClose, onUpdate, curren
       `)
       .eq('conversation_id', conversation.id)
     if (!error && data) {
-      const formatted = data.map(m => ({ ...m.profiles, role: m.role }))
-      setMembers(formatted)
+      setMembers(data.map(m => ({ ...m.profiles, role: m.role })))
     }
   }
 
@@ -54,6 +51,7 @@ export default function GroupInfoModal({ conversation, onClose, onUpdate, curren
     }
   }
 
+  // ✅ Fixed: group avatar upload to 'group-avatars' bucket
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -68,22 +66,28 @@ export default function GroupInfoModal({ conversation, onClose, onUpdate, curren
     setIsUploading(true)
     const fileExt = file.name.split('.').pop()
     const fileName = `group_${conversation.id}_${Date.now()}.${fileExt}`
-    const filePath = `groups/${fileName}`
+    // Store directly in the bucket root (no subfolder)
+    const filePath = fileName
+
     const { error: uploadError } = await supabase.storage
-      .from('avatars')
+      .from('group-avatars')
       .upload(filePath, file)
+
     if (uploadError) {
       setError('Upload failed: ' + uploadError.message)
       setIsUploading(false)
       return
     }
+
     const { data: { publicUrl } } = supabase.storage
-      .from('avatars')
+      .from('group-avatars')
       .getPublicUrl(filePath)
+
     const { error: updateError } = await supabase
       .from('conversations')
       .update({ avatar_url: publicUrl })
       .eq('id', conversation.id)
+
     if (updateError) {
       setError('Failed to update avatar')
     } else {
@@ -111,9 +115,7 @@ export default function GroupInfoModal({ conversation, onClose, onUpdate, curren
 
   const removeMember = async (userId) => {
     if (userId === currentUserId) {
-      if (confirm('Leave this group?')) {
-        await leaveGroup()
-      }
+      if (confirm('Leave this group?')) await leaveGroup()
       return
     }
     if (!confirm('Remove this member?')) return
@@ -140,7 +142,7 @@ export default function GroupInfoModal({ conversation, onClose, onUpdate, curren
     if (error) {
       setError(error.message)
     } else {
-      onClose(true) // true indicates conversation was left/deleted
+      onClose(true) // signal that conversation was left
     }
     setLoading(false)
   }
@@ -159,18 +161,17 @@ export default function GroupInfoModal({ conversation, onClose, onUpdate, curren
     setLoading(false)
   }
 
-  const searchUsers = async (query) => {
-    if (!query.trim()) {
-      setSearchResults([])
-      return
-    }
-    const results = await search(query)
-    const existingIds = members.map(m => m.id)
-    setSearchResults(results.filter(u => !existingIds.includes(u.id) && u.id !== currentUserId))
-  }
-
+  // Search users for adding
   useEffect(() => {
-    const timer = setTimeout(() => searchUsers(searchQuery), 300)
+    const timer = setTimeout(async () => {
+      if (searchQuery.trim()) {
+        const results = await search(searchQuery)
+        const existingIds = members.map(m => m.id)
+        setSearchResults(results.filter(u => !existingIds.includes(u.id) && u.id !== currentUserId))
+      } else {
+        setSearchResults([])
+      }
+    }, 300)
     return () => clearTimeout(timer)
   }, [searchQuery])
 
@@ -183,7 +184,7 @@ export default function GroupInfoModal({ conversation, onClose, onUpdate, curren
         </div>
         <div className="modal-body">
           {/* Avatar & Name */}
-          <div className="group-info-header">
+          <div style={{ textAlign: 'center' }}>
             <div style={{ position: 'relative', display: 'inline-block' }}>
               <Avatar name={groupName} src={groupAvatar} size={80} />
               {isAdmin && (
@@ -199,7 +200,7 @@ export default function GroupInfoModal({ conversation, onClose, onUpdate, curren
             </div>
             <div style={{ marginTop: 12 }}>
               {isEditingName ? (
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
                   <input
                     value={groupName}
                     onChange={e => setGroupName(e.target.value)}
@@ -211,7 +212,7 @@ export default function GroupInfoModal({ conversation, onClose, onUpdate, curren
                   <button className="icon-btn" onClick={() => setIsEditingName(false)}>✕</button>
                 </div>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                   <h3 style={{ margin: 0 }}>{groupName}</h3>
                   {isAdmin && (
                     <button className="icon-btn" onClick={() => setIsEditingName(true)}><Edit2 size={14} /></button>
@@ -221,7 +222,7 @@ export default function GroupInfoModal({ conversation, onClose, onUpdate, curren
             </div>
           </div>
 
-          {error && <div style={{ color: 'var(--error)', fontSize: 12, margin: '8px 0' }}>{error}</div>}
+          {error && <div style={{ color: 'var(--error)', fontSize: 12, margin: '8px 0', textAlign: 'center' }}>{error}</div>}
 
           {/* Members list */}
           <div style={{ marginTop: 20 }}>
@@ -244,9 +245,12 @@ export default function GroupInfoModal({ conversation, onClose, onUpdate, curren
                   style={{ width: '100%', marginBottom: 8 }}
                 />
                 {searchResults.map(u => (
-                  <div key={u.id} className="user-row" onClick={() => addMember(u.id)}>
+                  <div key={u.id} className="user-row" onClick={() => addMember(u.id)} style={{ cursor: 'pointer' }}>
                     <Avatar name={u.display_name || u.username} src={u.avatar_url} size={36} />
-                    <div><div>{u.display_name || u.username}</div><div className="ur-sub">@{u.username}</div></div>
+                    <div>
+                      <div>{u.display_name || u.username}</div>
+                      <div className="ur-sub">@{u.username}</div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -254,7 +258,7 @@ export default function GroupInfoModal({ conversation, onClose, onUpdate, curren
 
             <div style={{ maxHeight: 300, overflowY: 'auto' }}>
               {members.map(m => (
-                <div key={m.id} className="user-row" style={{ justifyContent: 'space-between' }}>
+                <div key={m.id} className="user-row" style={{ justifyContent: 'space-between', display: 'flex', alignItems: 'center', padding: '8px 0' }}>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                     <Avatar name={m.display_name || m.username} src={m.avatar_url} size={36} />
                     <div>
