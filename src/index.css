@@ -588,7 +588,7 @@ body {
     box-shadow: 2px 0 10px rgba(0,0,0,0.3);
   }
   .sidebar.open {
-    transform: translateX(100%) !important;
+    transform: translateX(80%) !important;
   }
 
   /* Backdrop overlay */
@@ -606,8 +606,7 @@ body {
   }
   .sidebar-backdrop.open {
     opacity: 1;
-    transform: translateX(-100%) !important;
-    visibility: none;
+    visibility: visible;
   }
 
   /* Chat area takes full width */
