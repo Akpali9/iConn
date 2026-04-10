@@ -12,13 +12,16 @@ export function useMessages(conversationId) {
   useEffect(() => {
     if (!conversationId) return
     setLoading(true)
+
     const fetchMsgs = async () => {
       const { data, error } = await supabase
         .from('messages')
         .select(`
           *,
           profiles:sender_id (id, username, display_name, avatar_url),
-          reply:messages!reply_to (id, content, profiles:sender_id (display_name, username)),
+          reply:messages!reply_to (
+            id, content, profiles:sender_id (display_name, username)
+          ),
           reactions (*, user_id)
         `)
         .eq('conversation_id', conversationId)
@@ -37,12 +40,17 @@ export function useMessages(conversationId) {
         }
       )
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
-        (payload) => { setMsgs(prev => prev.map(m => m.id === payload.new.id ? payload.new : m)) }
+        (payload) => {
+          setMsgs(prev => prev.map(m => m.id === payload.new.id ? payload.new : m))
+        }
       )
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
-        (payload) => { setMsgs(prev => prev.filter(m => m.id !== payload.old.id)) }
+        (payload) => {
+          setMsgs(prev => prev.filter(m => m.id !== payload.old.id))
+        }
       )
       .subscribe()
+
     return () => supabase.removeChannel(channel)
   }, [conversationId])
 
@@ -64,15 +72,21 @@ export function useMessages(conversationId) {
     return () => supabase.removeChannel(typingChannel)
   }, [conversationId, user.id])
 
-  const sendMessage = async (content, replyToId = null) => {
-    if (!content.trim() || !conversationId) return false
-    const { error } = await supabase.from('messages').insert({
+  // ✅ sendMessage with file upload support (for voice messages)
+  const sendMessage = async (content, replyToId = null, fileUrl = null, fileType = null) => {
+    if ((!content || !content.trim()) && !fileUrl) return false
+    if (!conversationId) return false
+
+    const message = {
       conversation_id: conversationId,
       sender_id: user.id,
-      content: content.trim(),
-      type: 'text',
+      content: (content && content.trim()) || (fileType === 'audio' ? '🎤 Voice message' : '📎 File'),
+      type: fileType || 'text',
       reply_to: replyToId || null,
-    })
+    }
+    if (fileUrl) message.file_url = fileUrl
+
+    const { error } = await supabase.from('messages').insert(message)
     if (error) {
       console.error('sendMessage error:', error)
       alert(`Failed to send: ${error.message}`)
