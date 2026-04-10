@@ -571,7 +571,7 @@ body {
 .welcome-icon { font-size: 64px; }
 .spin { animation: spin 1s linear infinite; }
 
-/* ========== MOBILE RESPONSIVE (FIXED) ========== */
+/* ========== MOBILE RESPONSIVE (FULLY CORRECTED) ========== */
 @media (max-width: 768px) {
   /* Sidebar hidden by default, slides in when .open is added */
   .sidebar {
@@ -588,22 +588,24 @@ body {
     box-shadow: 2px 0 10px rgba(0,0,0,0.3);
   }
   .sidebar.open {
-    transform: translateX(80%) !important;
-    width: 100%;
+    transform: translateX(0);
   }
 
   /* Backdrop overlay */
   .sidebar-backdrop {
     position: fixed;
-        transform: translateX(-100%);
-    
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease;
   }
   .sidebar-backdrop.open {
     opacity: 1;
-
     visibility: visible;
   }
 
