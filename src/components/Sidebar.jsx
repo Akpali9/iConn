@@ -22,11 +22,8 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // DEBUG: log profile and convs
-  console.log('Sidebar render:', { profile, convsLength: convs.length, loading })
-
+  // Wait for profile to load
   if (!profile) {
-    console.log('Profile is null – showing loader')
     return <div className="loading-screen"><div className="spinner" /></div>
   }
 
@@ -50,7 +47,7 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
 
   return (
     <>
-      <aside className="sidebar" style={{ background: 'var(--surface)', color: 'var(--text)' }}>
+      <aside className="sidebar">
         {isMobile && (
           <button className="icon-btn mobile-close-btn" onClick={onCloseSidebar} style={{ position: 'absolute', top: 16, right: 16, zIndex: 10, background: 'var(--surface-2)' }}>
             <X size={18} />
@@ -73,8 +70,12 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
           </div>
         </div>
 
-        {/* Profile section – prominently at the top */}
-        <div className="sidebar-profile-top" onClick={() => onShowProfile(profile)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: '1px solid var(--border)', cursor: 'pointer', background: 'var(--surface)' }}>
+        {/* Profile section – top */}
+        <div 
+          className="sidebar-profile-top" 
+          onClick={() => onShowProfile(profile)} 
+          style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: '1px solid var(--border)', cursor: 'pointer', background: 'var(--surface)' }}
+        >
           <Avatar name={profile.display_name || ''} src={profile.avatar_url} size={48} />
           <div>
             <div style={{ fontWeight: 600, color: 'var(--text)' }}>{profile.display_name || 'You'}</div>
@@ -133,7 +134,6 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
   )
 }
 
-// ConvRow, GrpAv, SkelItem, convName remain the same (include them)
 function ConvRow({ c, active, onClick, onShowProfile, onDelete }) {
   const name = convName(c)
   const member = c.members?.[0]
