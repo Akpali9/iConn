@@ -5,7 +5,7 @@ import Sidebar from './components/Sidebar'
 import ChatView from './components/ChatView'
 import ProfileModal from './components/ProfileModal'
 import GroupInfoModal from './components/GroupInfoModal'
-import AuthPage from './pages/AuthPage'
+import AuthPage from './components/AuthPage'
 
 function App() {
   const { user, profile, loading: authLoading, refreshProfile } = useAuth()
@@ -18,7 +18,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
-  // Detect mobile
+  // Detect mobile screen
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth <= 768
@@ -40,7 +40,7 @@ function App() {
     } else if (activeConvId) {
       const found = convs.find(c => c.id === activeConvId)
       setActiveConv(found)
-      if (isMobile) setSidebarOpen(false)   // close sidebar when chat opens
+      if (isMobile) setSidebarOpen(false)
     } else {
       setActiveConv(null)
     }
@@ -53,7 +53,7 @@ function App() {
 
   const handleBackToList = () => {
     setActiveConvId(null)
-    if (isMobile) setSidebarOpen(true)      // open sidebar when back to list
+    if (isMobile) setSidebarOpen(true)
   }
 
   const toggleSidebar = () => {
@@ -68,35 +68,13 @@ function App() {
       {/* Mobile backdrop */}
       {isMobile && (
         <div
-          className="sidebar-backdrop"
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.5)',
-            zIndex: 999,
-            opacity: sidebarOpen ? 1 : 0,
-            visibility: sidebarOpen ? 'visible' : 'hidden',
-            transition: 'opacity 0.3s ease',
-          }}
+          className={`sidebar-backdrop ${sidebarOpen ? 'open' : ''}`}
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar wrapper with inline transform for mobile */}
-      <div
-        style={{
-          position: isMobile ? 'fixed' : 'relative',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          zIndex: 1000,
-          transform: isMobile ? (sidebarOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
-          transition: 'transform 0.3s ease',
-        }}
-      >
+      {/* Sidebar wrapper */}
+      <div className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <Sidebar
           convs={convs}
           loading={convsLoading}
@@ -108,7 +86,7 @@ function App() {
       </div>
 
       {/* Main chat area */}
-      <div className="chat-area" style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
+      <div className="chat-area">
         {activeConv ? (
           <ChatView
             conv={activeConv}
