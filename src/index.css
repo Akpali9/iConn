@@ -1,7 +1,23 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+.quick-rx {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background: var(--surface-2, #fff);
+  border-radius: 20px;
+  padding: 6px 12px;
+  display: flex;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1000;
+  margin-bottom: 8px;
+}
 
+.msg-wrap {
+  position: relative; /* important for absolute positioning */
+}
 :root {
   --bg: #0a0a0c;
   --surface: #121214;
