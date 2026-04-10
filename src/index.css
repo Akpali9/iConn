@@ -606,7 +606,7 @@ body {
   }
   .sidebar-backdrop.open {
     opacity: 1;
-    visibility: visible;
+    visibility: hidden;
   }
 
   /* Chat area takes full width */
