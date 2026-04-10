@@ -582,7 +582,7 @@ body {
     width: 85%;
     max-width: 300px;
     z-index: 1000;
-    transform: translateX(-100%);
+    transform: translateX(0) !important;
     transition: transform 0.3s ease;
     background: var(--surface);
     box-shadow: 2px 0 10px rgba(0,0,0,0.3);
