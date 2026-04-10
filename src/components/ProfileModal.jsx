@@ -3,9 +3,11 @@ import { X, Upload, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { supabase } from '../lib/supabase'
 import Avatar from './Avatar'
+import { useAuth } from '../contexts/AuthContext'  // ✅ added to refresh profile
 
 export default function ProfileModal({ user: targetUser, onClose, currentUserId, onProfileUpdate }) {
   const [uploading, setUploading] = useState(false)
+  const { refreshProfile } = useAuth()  // ✅ get refresh function
   const isSelf = targetUser?.id === currentUserId
   const [localUser, setLocalUser] = useState(targetUser)
 
@@ -56,7 +58,10 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId,
     if (updateError) {
       alert('Failed to update profile: ' + updateError.message)
     } else {
-      // Update local state
+      // ✅ Refresh the profile in AuthContext so sidebar updates immediately
+      await refreshProfile()
+      
+      // Update local state for this modal
       setLocalUser({ ...localUser, avatar_url: publicUrl })
       if (onProfileUpdate) onProfileUpdate({ avatar_url: publicUrl })
     }
