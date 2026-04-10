@@ -18,19 +18,20 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
+  // Detect mobile screen size
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth <= 768
       setIsMobile(mobile)
-      // Desktop: always open sidebar; Mobile: closed by default
-      if (!mobile) setSidebarOpen(true)
-      else setSidebarOpen(false)
+      if (!mobile) setSidebarOpen(true)   // desktop: always open
+      else setSidebarOpen(false)          // mobile: closed by default
     }
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
+  // Update active conversation when ID changes
   useEffect(() => {
     if (activeConvId === '__profile__') {
       setShowProfileModal(true)
@@ -39,7 +40,7 @@ function App() {
     } else if (activeConvId) {
       const found = convs.find(c => c.id === activeConvId)
       setActiveConv(found)
-      if (isMobile) setSidebarOpen(false)  // close sidebar when a chat opens
+      if (isMobile) setSidebarOpen(false)   // close sidebar when chat opens
     } else {
       setActiveConv(null)
     }
@@ -52,7 +53,7 @@ function App() {
 
   const handleBackToList = () => {
     setActiveConvId(null)
-    if (isMobile) setSidebarOpen(true)   // open sidebar when returning to list
+    if (isMobile) setSidebarOpen(true)     // open sidebar when back to list
   }
 
   const toggleSidebar = () => {
@@ -64,7 +65,7 @@ function App() {
 
   return (
     <div className="app">
-      {/* Mobile backdrop */}
+      {/* Mobile backdrop overlay */}
       {isMobile && (
         <div
           className={`sidebar-backdrop ${sidebarOpen ? 'open' : ''}`}
@@ -113,7 +114,7 @@ function App() {
         )}
       </div>
 
-      {/* Modals */}
+      {/* Profile modal */}
       {showProfileModal && (
         <ProfileModal
           user={profileUser}
@@ -122,6 +123,8 @@ function App() {
           onProfileUpdate={refreshProfile}
         />
       )}
+
+      {/* Group info modal */}
       {showGroupInfo && activeConv && (
         <GroupInfoModal
           conversation={activeConv}
