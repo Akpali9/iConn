@@ -14,9 +14,7 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
   const [modal, setModal] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [isMobile, setIsMobile] = useState(false)
-  
-  // ✅ Cache buster for avatar – updates when profile.avatar_url changes
-  const [avatarTimestamp, setAvatarTimestamp] = useState(Date.now())
+  const [avatarKey, setAvatarKey] = useState(0) // forces Avatar re-render
 
   useEffect(() => {
     setIsMobile(window.innerWidth <= 768)
@@ -25,10 +23,10 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // ✅ Force reload avatar image when URL changes (upload or refresh)
+  // When avatar URL changes, increment key to force re-render
   useEffect(() => {
     if (profile?.avatar_url) {
-      setAvatarTimestamp(Date.now())
+      setAvatarKey(prev => prev + 1)
     }
   }, [profile?.avatar_url])
 
@@ -52,12 +50,6 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
     if (ok) window.location.reload()
     else alert('Failed to delete conversation')
     setDeleteTarget(null)
-  }
-
-  // ✅ Helper to add cache buster to avatar URL
-  const getAvatarSrc = (url) => {
-    if (!url) return null
-    return `${url}?v=${avatarTimestamp}`
   }
 
   return (
@@ -85,9 +77,9 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
           </div>
         </div>
 
-        {/* Profile section – top (cache‑busted avatar) */}
+        {/* Profile section – top */}
         <div className="sidebar-profile-top" onClick={() => onShowProfile(profile)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: '1px solid var(--border)', cursor: 'pointer', background: 'var(--surface)' }}>
-          <Avatar name={profile.display_name || ''} src={getAvatarSrc(profile.avatar_url)} size={48} />
+          <Avatar key={avatarKey} name={profile.display_name || ''} src={profile.avatar_url} size={48} />
           <div>
             <div style={{ fontWeight: 600, color: 'var(--text)' }}>{profile.display_name || 'You'}</div>
             <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>@{profile.username}</div>
@@ -121,7 +113,7 @@ export default function Sidebar({ convs, loading, activeId, onSelect, onShowProf
         </div>
         <div className="sidebar-foot" onClick={() => onShowProfile(profile)}>
           <div className="av" style={{ position: 'relative' }}>
-            <Avatar name={profile.display_name || ''} src={getAvatarSrc(profile.avatar_url)} size={40} />
+            <Avatar key={avatarKey + 100} name={profile.display_name || ''} src={profile.avatar_url} size={40} />
             <div className="av-dot" />
           </div>
           <div className="sf-info">
