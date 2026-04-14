@@ -10,33 +10,22 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId,
   const { refreshProfile, profile: currentProfile } = useAuth()
   const isSelf = targetUser?.id === currentUserId
   const [localUser, setLocalUser] = useState(targetUser)
-  
-  // ✅ Cache buster – forces image reload when avatar URL changes
-  const [avatarTimestamp, setAvatarTimestamp] = useState(Date.now())
+  const [avatarKey, setAvatarKey] = useState(0)
 
   // Sync localUser when targetUser changes
   useEffect(() => {
     setLocalUser(targetUser)
   }, [targetUser])
 
-  // For self profile, sync with context profile (more reliable)
+  // For self profile, use context profile (always fresh)
   useEffect(() => {
     if (isSelf && currentProfile) {
       setLocalUser(currentProfile)
-      // Also bump cache buster when avatar URL changes
-      if (currentProfile?.avatar_url) {
-        setAvatarTimestamp(Date.now())
-      }
+      setAvatarKey(prev => prev + 1) // force re-render if avatar URL changed
     }
   }, [isSelf, currentProfile])
 
   if (!targetUser) return null
-
-  // Helper to add cache buster to avatar URL
-  const getAvatarSrc = (url) => {
-    if (!url) return null
-    return `${url}?v=${avatarTimestamp}`
-  }
 
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0]
@@ -79,18 +68,16 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId,
     if (updateError) {
       alert('Failed to update profile: ' + updateError.message)
     } else {
-      // Refresh AuthContext profile
+      // Refresh context profile
       await refreshProfile()
       
       // Update local state
       setLocalUser(prev => ({ ...prev, avatar_url: publicUrl }))
+      setAvatarKey(prev => prev + 1) // force avatar re-render
       
-      // ✅ Force cache buster to reload the image
-      setAvatarTimestamp(Date.now())
-      
-      // Notify parent (e.g., to update sidebar's cache buster)
+      // Notify parent (optional)
       if (onProfileUpdate) {
-        onProfileUpdate({ avatar_url: publicUrl, timestamp: Date.now() })
+        onProfileUpdate({ avatar_url: publicUrl })
       }
     }
 
@@ -108,8 +95,9 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId,
         <div style={{ textAlign: 'center', padding: '16px 0 8px', position: 'relative' }}>
           <div style={{ position: 'relative', display: 'inline-block' }}>
             <Avatar 
+              key={avatarKey}
               name={localUser?.display_name || localUser?.username || ''} 
-              src={getAvatarSrc(localUser?.avatar_url)}  // ✅ cache-busted src
+              src={localUser?.avatar_url} 
               size={100} 
             />
             {isSelf && (
