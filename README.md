@@ -10,4 +10,3 @@ A full-featured WhatsApp-style messaging app built with **Vite + React + Supabas
 - Typing indicators & online presence
 - Profile panel with editable name/status
 - Responsive layout
-
