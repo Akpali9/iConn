@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'  // ✅ added useEffect
+import { useState, useEffect } from 'react'
 import { X, Upload, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { supabase } from '../lib/supabase'
@@ -7,23 +7,36 @@ import { useAuth } from '../contexts/AuthContext'
 
 export default function ProfileModal({ user: targetUser, onClose, currentUserId, onProfileUpdate }) {
   const [uploading, setUploading] = useState(false)
-  const { refreshProfile, profile: currentProfile } = useAuth()  // ✅ get currentProfile from context
+  const { refreshProfile, profile: currentProfile } = useAuth()
   const isSelf = targetUser?.id === currentUserId
   const [localUser, setLocalUser] = useState(targetUser)
+  
+  // ✅ Cache buster – forces image reload when avatar URL changes
+  const [avatarTimestamp, setAvatarTimestamp] = useState(Date.now())
 
-  // ✅ Sync localUser when targetUser changes (e.g., after refresh)
+  // Sync localUser when targetUser changes
   useEffect(() => {
     setLocalUser(targetUser)
   }, [targetUser])
 
-  // ✅ For self profile, also sync with context profile if available (more reliable)
+  // For self profile, sync with context profile (more reliable)
   useEffect(() => {
     if (isSelf && currentProfile) {
       setLocalUser(currentProfile)
+      // Also bump cache buster when avatar URL changes
+      if (currentProfile?.avatar_url) {
+        setAvatarTimestamp(Date.now())
+      }
     }
   }, [isSelf, currentProfile])
 
   if (!targetUser) return null
+
+  // Helper to add cache buster to avatar URL
+  const getAvatarSrc = (url) => {
+    if (!url) return null
+    return `${url}?v=${avatarTimestamp}`
+  }
 
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0]
@@ -66,15 +79,18 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId,
     if (updateError) {
       alert('Failed to update profile: ' + updateError.message)
     } else {
-      // ✅ Refresh the profile in AuthContext (updates sidebar and currentProfile)
+      // Refresh AuthContext profile
       await refreshProfile()
       
-      // ✅ Update local state for this modal
+      // Update local state
       setLocalUser(prev => ({ ...prev, avatar_url: publicUrl }))
       
-      // ✅ Notify parent component so it can update its own user object
+      // ✅ Force cache buster to reload the image
+      setAvatarTimestamp(Date.now())
+      
+      // Notify parent (e.g., to update sidebar's cache buster)
       if (onProfileUpdate) {
-        onProfileUpdate({ avatar_url: publicUrl })
+        onProfileUpdate({ avatar_url: publicUrl, timestamp: Date.now() })
       }
     }
 
@@ -93,7 +109,7 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId,
           <div style={{ position: 'relative', display: 'inline-block' }}>
             <Avatar 
               name={localUser?.display_name || localUser?.username || ''} 
-              src={localUser?.avatar_url} 
+              src={getAvatarSrc(localUser?.avatar_url)}  // ✅ cache-busted src
               size={100} 
             />
             {isSelf && (
