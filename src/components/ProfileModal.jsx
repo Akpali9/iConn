@@ -6,26 +6,31 @@ import Avatar from './Avatar'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function ProfileModal({ user: targetUser, onClose, currentUserId, onProfileUpdate }) {
-  const [uploading, setUploading] = useState(false)
   const { refreshProfile, profile: currentProfile } = useAuth()
   const isSelf = targetUser?.id === currentUserId
-  const [localUser, setLocalUser] = useState(targetUser)
+  
+  // ✅ Always use currentProfile for self, otherwise targetUser
+  const [displayUser, setDisplayUser] = useState(isSelf ? currentProfile : targetUser)
+  const [uploading, setUploading] = useState(false)
   const [avatarKey, setAvatarKey] = useState(0)
 
-  // Sync localUser when targetUser changes
+  // Update displayUser when props or context change
   useEffect(() => {
-    setLocalUser(targetUser)
-  }, [targetUser])
-
-  // For self profile, use context profile (always fresh)
-  useEffect(() => {
-    if (isSelf && currentProfile) {
-      setLocalUser(currentProfile)
-      setAvatarKey(prev => prev + 1) // force re-render if avatar URL changed
+    if (isSelf) {
+      setDisplayUser(currentProfile)
+    } else {
+      setDisplayUser(targetUser)
     }
-  }, [isSelf, currentProfile])
+  }, [isSelf, currentProfile, targetUser])
 
-  if (!targetUser) return null
+  // Force avatar re-render when displayUser.avatar_url changes
+  useEffect(() => {
+    if (displayUser?.avatar_url) {
+      setAvatarKey(prev => prev + 1)
+    }
+  }, [displayUser?.avatar_url])
+
+  if (!displayUser) return null
 
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0]
@@ -68,14 +73,16 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId,
     if (updateError) {
       alert('Failed to update profile: ' + updateError.message)
     } else {
-      // Refresh context profile
+      // ✅ Refresh the AuthContext profile
       await refreshProfile()
       
-      // Update local state
-      setLocalUser(prev => ({ ...prev, avatar_url: publicUrl }))
-      setAvatarKey(prev => prev + 1) // force avatar re-render
+      // ✅ Immediately update local displayUser to avoid waiting for context
+      setDisplayUser(prev => ({ ...prev, avatar_url: publicUrl }))
       
-      // Notify parent (optional)
+      // ✅ Force avatar component to re-mount
+      setAvatarKey(prev => prev + 1)
+      
+      // ✅ Notify parent (e.g., sidebar) to also refresh
       if (onProfileUpdate) {
         onProfileUpdate({ avatar_url: publicUrl })
       }
@@ -96,8 +103,8 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId,
           <div style={{ position: 'relative', display: 'inline-block' }}>
             <Avatar 
               key={avatarKey}
-              name={localUser?.display_name || localUser?.username || ''} 
-              src={localUser?.avatar_url} 
+              name={displayUser.display_name || displayUser.username || ''} 
+              src={displayUser.avatar_url} 
               size={100} 
             />
             {isSelf && (
@@ -131,27 +138,27 @@ export default function ProfileModal({ user: targetUser, onClose, currentUserId,
             )}
           </div>
           <div style={{ fontSize: 20, fontWeight: 600, marginTop: 12 }}>
-            {localUser?.display_name || localUser?.username}
+            {displayUser.display_name || displayUser.username}
           </div>
-          <div style={{ color: 'var(--ink-40)', fontSize: 13 }}>@{localUser?.username}</div>
+          <div style={{ color: 'var(--ink-40)', fontSize: 13 }}>@{displayUser.username}</div>
         </div>
 
         <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {localUser?.bio && (
+          {displayUser.bio && (
             <div>
               <div style={{ fontSize: 11, color: 'var(--ink-40)', marginBottom: 3 }}>BIO</div>
-              <div>{localUser.bio}</div>
+              <div>{displayUser.bio}</div>
             </div>
           )}
           <div>
             <div style={{ fontSize: 11, color: 'var(--ink-40)', marginBottom: 3 }}>EMAIL</div>
-            <div>{localUser?.email || 'Not shared'}</div>
+            <div>{displayUser.email || 'Not shared'}</div>
           </div>
           <div>
             <div style={{ fontSize: 11, color: 'var(--ink-40)', marginBottom: 3 }}>JOINED</div>
-            <div>{localUser?.created_at ? format(new Date(localUser.created_at), 'MMM d, yyyy') : 'Unknown'}</div>
+            <div>{displayUser.created_at ? format(new Date(displayUser.created_at), 'MMM d, yyyy') : 'Unknown'}</div>
           </div>
-          {localUser?.is_online && (
+          {displayUser.is_online && (
             <div className="status-badge online" style={{ background:'var(--success)', color:'white', padding:'4px 12px', borderRadius:20, textAlign:'center', fontSize:12, width:'fit-content' }}>
               Online now
             </div>
